@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>Robby</title>
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="/static/css/style.css?v=66">
+</head>
+<body>
+    <!-- App Main Container -->
+    <div class="app-container">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-top">
+                <div class="logo">
+                    <span class="logo-accent"><i class="fa-solid fa-bolt"></i></span>
+                    <h1>Robby <span id="current-symbol" style="font-size: 13px; color: var(--text-secondary); font-weight: 600; margin-left: 5px;">Ger40</span></h1>
+                </div>
+                <!-- Connection Status Indicators -->
+                <div class="connection-status">
+                    <div class="status-badge" id="status-long">
+                        <span class="status-dot"></span>
+                        <span class="status-text">LONG</span>
+                    </div>
+                    <div class="status-badge" id="status-short">
+                        <span class="status-dot"></span>
+                        <span class="status-text">SHORT</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content (Scrollable Viewport) -->
+        <main class="app-main-viewport">
+            
+            <!-- TAB: SCALP -->
+            <section id="tab-scalp" class="tab-content">
+                <!-- Unified Scalp Console Card -->
+                <div class="scalp-console-card">
+                    <!-- Top Row: Live Bid/Ask Interactive Buttons -->
+                    <div class="live-action-buttons">
+                        <button class="live-btn live-buy-btn" id="scalp-buy-btn">
+                            <span class="live-btn-title">BUY (LONG)</span>
+                            <span class="live-btn-price" id="scalp-buy-price">00000.0</span>
+                            <span class="live-btn-sub">Click to execute Long</span>
+                        </button>
+                        <div class="spread-badge-middle" id="scalp-spread-middle">0.0</div>
+                        <button class="live-btn live-sell-btn" id="scalp-sell-btn">
+                            <span class="live-btn-title">SELL (SHORT)</span>
+                            <span class="live-btn-price" id="scalp-sell-price">00000.0</span>
+                            <span class="live-btn-sub">Click to execute Short</span>
+                        </button>
+                    </div>
+
+                    <!-- Middle Row: Interactive Parameter Bar -->
+                    <div class="scalp-param-bar">
+                        <!-- Type -->
+                        <div class="param-bar-col">
+                            <span class="param-bar-label">Type</span>
+                            <span class="param-bar-value">Market</span>
+                        </div>
+                        <!-- Lot -->
+                        <div class="param-bar-col clickable-param" id="param-col-lot" onclick="toggleScalpParamPanel('lot')">
+                            <span class="param-bar-label">Lot</span>
+                            <span class="param-bar-value" id="val-display-lot">0.25</span>
+                        </div>
+                        <!-- SL -->
+                        <div class="param-bar-col clickable-param" id="param-col-sl" onclick="toggleScalpParamPanel('sl')">
+                            <span class="param-bar-label">SL</span>
+                            <span class="param-bar-value" id="val-display-sl">-20</span>
+                        </div>
+                        <!-- BE -->
+                        <div class="param-bar-col clickable-param" id="param-col-be" onclick="toggleScalpParamPanel('be')">
+                            <span class="param-bar-label">BE</span>
+                            <span class="param-bar-value" id="val-display-be">Off</span>
+                        </div>
+                        <!-- TP -->
+                        <div class="param-bar-col clickable-param" id="param-col-tp" onclick="toggleScalpParamPanel('tp')">
+                            <span class="param-bar-label">TP</span>
+                            <span class="param-bar-value" id="val-display-tp">40</span>
+                        </div>
+                    </div>
+
+                    <!-- Bottom: Dynamic Parameter Panels -->
+                    <div class="scalp-param-panel-container">
+                        <!-- LOT Panel -->
+                        <div class="scalp-param-panel" id="panel-scalp-lot">
+                            <label class="panel-title">Volume (Lots)</label>
+                            <div class="preset-selector" id="lot-presets">
+                                <button class="preset-btn active" data-val="0.25">0.25</button>
+                                <button class="preset-btn" data-val="0.75">0.75</button>
+                                <button class="preset-btn btn-split" data-val="0.75" data-split="true">0.75 Split</button>
+                                <button class="preset-btn btn-split" data-val="0.75" data-split="true" data-scenario="1">0.75 Sc1</button>
+                                <div class="custom-input-wrapper">
+                                    <input type="number" id="input-lot" step="0.01" min="0.01" value="0.25" placeholder="Custom">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- BE Panel -->
+                        <div class="scalp-param-panel" id="panel-scalp-be">
+                            <label class="panel-title">Auto break event (pips)</label>
+                            <div class="preset-selector" id="auto-be-presets">
+                                <button class="preset-btn active" data-val="0">off</button>
+                                <button class="preset-btn" data-val="10">10</button>
+                                <button class="preset-btn" data-val="20">20</button>
+                                <button class="preset-btn" data-val="40">40</button>
+                                <button class="preset-btn" data-val="60">60</button>
+                                <div class="custom-input-wrapper">
+                                    <input type="number" id="input-auto-be" step="1" min="0" value="0" placeholder="Custom">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SL Panel -->
+                        <div class="scalp-param-panel" id="panel-scalp-sl">
+                            <label class="panel-title">Stop Loss (Points)</label>
+                            <div class="preset-selector" id="sl-presets">
+                                <button class="preset-btn" data-val="10">10</button>
+                                <button class="preset-btn active" data-val="20">20</button>
+                                <button class="preset-btn" data-val="40">40</button>
+                                <button class="preset-btn" data-val="0">None</button>
+                                <div class="custom-input-wrapper">
+                                    <input type="number" id="input-sl-points" step="1" min="0" value="20" placeholder="Custom">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TP Panel -->
+                        <div class="scalp-param-panel" id="panel-scalp-tp">
+                            <label class="panel-title">Take Profit (Points)</label>
+                            <div class="preset-selector" id="tp-presets">
+                                <button class="preset-btn" data-val="10">10</button>
+                                <button class="preset-btn" data-val="20">20</button>
+                                <button class="preset-btn active" data-val="40">40</button>
+                                <button class="preset-btn" data-val="0">None</button>
+                                <div class="custom-input-wrapper">
+                                    <input type="number" id="input-tp-points" step="1" min="0" value="40" placeholder="Custom">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scalp Open Positions (Quick View) -->
+                <div class="quick-positions-section">
+                    <div class="section-header">
+                        <h3>Positions Actives (<span id="quick-pos-count">0</span>)</h3>
+                        <span class="total-pnl-badge" id="quick-total-pnl">0.0 pips</span>
+                    </div>
+                    <div class="quick-positions-list" id="quick-positions-container">
+                        <!-- Filled dynamically -->
+                        <div class="no-positions-placeholder">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <p>Aucune position active sur <span class="placeholder-sym">GER40</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scalp Pending Orders (Quick View) -->
+                <div class="quick-positions-section" style="margin-top: 15px;">
+                    <div class="section-header">
+                        <h3>Ordres en Attente (<span id="quick-orders-count">0</span>)</h3>
+                    </div>
+                    <div class="quick-positions-list" id="quick-orders-container">
+                        <!-- Filled dynamically -->
+                        <div class="no-positions-placeholder">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <p>Aucun ordre en attente sur <span class="placeholder-sym">GER40</span></p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- TAB: POSITIONS -->
+            <section id="tab-positions" class="tab-content">
+                <!-- Summary Card -->
+                <div class="summary-dashboard">
+                    <div class="summary-metric">
+                        <span class="metric-label">Equity Totale</span>
+                        <span class="metric-val" id="dash-equity">0.00 EUR</span>
+                    </div>
+                    <div class="summary-metric">
+                        <span class="metric-label">Balance</span>
+                        <span class="metric-val" id="dash-balance">0.00 EUR</span>
+                    </div>
+                    <div class="summary-metric">
+                        <span class="metric-label">Marge Libre</span>
+                        <span class="metric-val" id="dash-free-margin">0.00 EUR</span>
+                    </div>
+                </div>
+
+                <!-- Full Positions List -->
+                <div class="positions-full-card">
+                    <div class="section-header">
+                        <h3>Liste des Positions</h3>
+                        <button class="btn btn-outline-danger btn-sm" id="close-all-btn">
+                            <i class="fa-solid fa-trash-can"></i> Tout Fermer
+                        </button>
+                    </div>
+
+                    <div class="positions-cards-list" id="positions-cards-container">
+                        <!-- Filled dynamically -->
+                        <div class="no-positions-placeholder">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <p>Aucune position ouverte</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Full Pending Orders List -->
+                <div class="positions-full-card" style="margin-top: 15px;">
+                    <div class="section-header">
+                        <h3>Liste des Ordres en Attente</h3>
+                    </div>
+
+                    <div class="positions-cards-list" id="orders-cards-container">
+                        <!-- Filled dynamically -->
+                        <div class="no-positions-placeholder">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <p>Aucun ordre en attente</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- TAB: JOURNAL & STATS -->
+            <section id="tab-journal" class="tab-content">
+                <!-- Account Summary Dashboard -->
+                <div class="summary-dashboard">
+                    <div class="summary-metric">
+                        <span class="metric-label">Equity Totale</span>
+                        <span class="metric-val" id="journal-equity">0.00 EUR</span>
+                    </div>
+                    <div class="summary-metric">
+                        <span class="metric-label">Balance</span>
+                        <span class="metric-val" id="journal-balance">0.00 EUR</span>
+                    </div>
+                    <div class="summary-metric">
+                        <span class="metric-label">Marge Libre</span>
+                        <span class="metric-val" id="journal-free-margin">0.00 EUR</span>
+                    </div>
+                </div>
+
+                <!-- Display Unit Selector -->
+                <div class="param-card" style="padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 5px; margin-bottom: 5px;">
+                    <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">Unité d'affichage</span>
+                    <div class="preset-selector" id="journal-unit-selector" style="width: 140px; margin: 0;">
+                        <button class="preset-btn active" data-unit="EUR">€</button>
+                        <button class="preset-btn" data-unit="PIPS">Pips</button>
+                    </div>
+                </div>
+
+                <!-- Stats Summary Dashboard -->
+                <div class="summary-dashboard stats-dashboard">
+                    <div class="summary-metric">
+                        <span class="metric-label">Gain Net</span>
+                        <span class="metric-val" id="stats-total-net">0.00 EUR</span>
+                    </div>
+                    <div class="summary-metric">
+                        <span class="metric-label">Trades</span>
+                        <span class="metric-val" id="stats-total-trades">0</span>
+                    </div>
+                    <div class="summary-metric">
+                        <span class="metric-label">Win Rate</span>
+                        <span class="metric-val" id="stats-win-rate">0.0%</span>
+                    </div>
+                    <div class="summary-metric">
+                        <span class="metric-label">Moy. / Trade</span>
+                        <span class="metric-val" id="stats-avg-trade">0.00 EUR</span>
+                    </div>
+                </div>
+
+                <!-- Daily Summary Section -->
+                <div class="param-card journal-stats-card">
+                    <h3>Performance par Jour</h3>
+                    <div class="stats-table-wrapper" style="max-height: 250px; overflow-y: auto;">
+                        <table class="positions-table stats-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Trades</th>
+                                    <th>G / BE / P</th>
+                                    <th>Gain Net</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stats-daily-tbody">
+                                <tr>
+                                    <td colspan="4" class="no-data-cell" style="text-align: center; color: var(--text-muted); padding: 20px;">Aucune donnée disponible</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Reconstructed Completed Trades Log -->
+                <div class="positions-full-card journal-trades-card">
+                    <div class="section-header">
+                        <h3>Historique des Transactions (30j)</h3>
+                        <button class="btn btn-primary btn-sm" id="export-csv-btn">
+                            <i class="fa-solid fa-file-csv"></i> Exporter CSV
+                        </button>
+                    </div>
+                    <div class="stats-table-wrapper" style="max-height: 350px; overflow-y: auto;">
+                        <table class="positions-table history-trades-table">
+                            <thead>
+                                <tr>
+                                    <th>Sens</th>
+                                    <th>Lot</th>
+                                    <th>Entrée / Sortie</th>
+                                    <th>Durée</th>
+                                    <th>Net PnL</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stats-trades-tbody">
+                                <tr>
+                                    <td colspan="5" class="no-data-cell" style="text-align: center; color: var(--text-muted); padding: 20px;">Aucune position fermée récente</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- TAB: CONFIG -->
+            <section id="tab-config" class="tab-content">
+                <form id="config-form" class="config-form">
+                    <div class="param-card">
+                        <h3>Configuration Générale</h3>
+                        
+                        <div class="form-group">
+                            <label for="cfg-symbol">Symbole de Trading (MT5)</label>
+                            <input type="text" id="cfg-symbol" required value="GER40" placeholder="Ex: GER40, DE40, GER40.cash">
+                            <small class="form-help">Doit correspondre exactement au symbole de votre broker.</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="cfg-lot">Volume par défaut (Lots)</label>
+                            <input type="number" id="cfg-lot" required step="0.01" min="0.01" value="0.1">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cfg-sl">Stop Loss par défaut (Points)</label>
+                            <input type="number" id="cfg-sl" required step="1" min="0" value="100">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cfg-tp">Take Profit par défaut (Points)</label>
+                            <input type="number" id="cfg-tp" required step="1" min="0" value="100">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cfg-auto-be">Auto BE par défaut (Pips)</label>
+                            <input type="number" id="cfg-auto-be" required step="1" min="0" value="0">
+                            <small class="form-help">Mise au point mort (BE) automatique après ce gain en pips (0 pour désactiver).</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="cfg-max-spread">Spread Max autorisé (Pips)</label>
+                            <input type="number" id="cfg-max-spread" required step="0.1" min="0" value="8">
+                            <small class="form-help">Bloque l'exécution de l'ordre si le spread actuel dépasse ce seuil (0 pour désactiver).</small>
+                        </div>
+                    </div>
+
+                    <div class="param-card">
+                        <h3>Chemins des Exécutables MT5</h3>
+                        
+                        <div class="form-group">
+                            <label for="cfg-path-long">MT5 Long (Bull)</label>
+                            <input type="text" id="cfg-path-long" required value="C:/Program Files/ActivTrades  MT5Bull/terminal64.exe">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cfg-path-short">MT5 Short (Bear)</label>
+                            <input type="text" id="cfg-path-short" required value="C:/Program Files/ActivTrades  MT5Bear/terminal64.exe">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block btn-large" id="save-config-btn">
+                        <i class="fa-solid fa-floppy-disk"></i> Enregistrer & Reconnecter
+                    </button>
+                </form>
+
+                <!-- Accounts Detailed Info -->
+                <div class="param-card details-card" style="margin-top: 20px;">
+                    <h3>Détails des Comptes MT5</h3>
+                    <div class="account-details-grid">
+                        <div class="account-card" id="detail-card-long">
+                            <h4 class="long-title">Compte LONG (Bull)</h4>
+                            <div class="detail-row"><span>Serveur:</span> <span id="acc-srv-long">-</span></div>
+                            <div class="detail-row"><span>Login:</span> <span id="acc-log-long">-</span></div>
+                            <div class="detail-row"><span>Solde:</span> <span id="acc-bal-long">-</span></div>
+                            <div class="detail-row"><span>Levier:</span> <span id="acc-lev-long">-</span></div>
+                        </div>
+                        <div class="account-card" id="detail-card-short">
+                            <h4 class="short-title">Compte SHORT (Bear)</h4>
+                            <div class="detail-row"><span>Serveur:</span> <span id="acc-srv-short">-</span></div>
+                            <div class="detail-row"><span>Login:</span> <span id="acc-log-short">-</span></div>
+                            <div class="detail-row"><span>Solde:</span> <span id="acc-bal-short">-</span></div>
+                            <div class="detail-row"><span>Levier:</span> <span id="acc-lev-short">-</span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: GRAPH -->
+            <section id="tab-graph" class="tab-content active">
+                <div class="graph-container-card" id="graph-chart-card">
+                    <!-- Sleek Timeframe Selector Bar -->
+                    <div class="chart-timeframe-selector">
+                        <button class="tf-btn active" data-tf="15S">15s</button>
+                        <button class="tf-btn" data-tf="30S">30s</button>
+                        <button class="tf-btn" data-tf="45S">45s</button>
+                        <button class="tf-btn" data-tf="1">1m</button>
+                        <button class="tf-btn" data-tf="2">2m</button>
+                        <button class="tf-btn" data-tf="3">3m</button>
+                        <button class="tf-btn" data-tf="5">5m</button>
+                    </div>
+                    <div id="tradingview-widget-container" style="flex-grow: 1; height: calc(100% - 38px); position: relative;">
+                        <div id="tradingview_chart" style="height: 100%;"></div>
+                        <!-- Floating Toggle Button -->
+                        <button class="floating-toggle-btn" id="graph-console-toggle-btn" title="Masquer/Afficher le panneau d'ordre">
+                            <i class="fa-solid fa-eye-slash"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Vertical Resizer Handle -->
+                <div class="graph-resizer" id="graph-resizer">
+                    <div class="resizer-handle-bar"></div>
+                </div>
+                <!-- Unified Graph Console Card -->
+                <div class="scalp-console-card" id="graph-scalp-console-card" style="margin-top: 10px;">
+                    <!-- Top Row: Live Bid/Ask Interactive Buttons -->
+                    <div class="live-action-buttons">
+                        <button class="live-btn live-buy-btn" id="graph-buy-btn">
+                            <span class="live-btn-title">BUY (LONG)</span>
+                            <span class="live-btn-price" id="graph-buy-price">00000.0</span>
+                            <span class="live-btn-sub">Click to execute Long</span>
+                        </button>
+                        <div class="spread-badge-middle" id="graph-spread-middle">0.0</div>
+                        <button class="live-btn live-sell-btn" id="graph-sell-btn">
+                            <span class="live-btn-title">SELL (SHORT)</span>
+                            <span class="live-btn-price" id="graph-sell-price">00000.0</span>
+                            <span class="live-btn-sub">Click to execute Short</span>
+                        </button>
+                    </div>
+
+                    <!-- Middle Row: Interactive Parameter Bar -->
+                    <div class="scalp-param-bar">
+                        <!-- Type -->
+                        <div class="param-bar-col">
+                            <span class="param-bar-label">Type</span>
+                            <span class="param-bar-value">Market</span>
+                        </div>
+                        <!-- Lot -->
+                        <div class="param-bar-col clickable-param" id="graph-param-col-lot" onclick="toggleGraphParamPanel('lot')">
+                            <span class="param-bar-label">Lot</span>
+                            <span class="param-bar-value" id="graph-val-display-lot">0.25</span>
+                        </div>
+                        <!-- SL -->
+                        <div class="param-bar-col clickable-param" id="graph-param-col-sl" onclick="toggleGraphParamPanel('sl')">
+                            <span class="param-bar-label">SL</span>
+                            <span class="param-bar-value" id="graph-val-display-sl">-20</span>
+                        </div>
+                        <!-- BE -->
+                        <div class="param-bar-col clickable-param" id="graph-param-col-be" onclick="toggleGraphParamPanel('be')">
+                            <span class="param-bar-label">BE</span>
+                            <span class="param-bar-value" id="graph-val-display-be">Off</span>
+                        </div>
+                        <!-- TP -->
+                        <div class="param-bar-col clickable-param" id="graph-param-col-tp" onclick="toggleGraphParamPanel('tp')">
+                            <span class="param-bar-label">TP</span>
+                            <span class="param-bar-value" id="graph-val-display-tp">40</span>
+                        </div>
+                    </div>
+
+                    <!-- Bottom: Dynamic Parameter Panels -->
+                    <div class="scalp-param-panel-container">
+                        <!-- LOT Panel -->
+                        <div class="scalp-param-panel" id="panel-graph-lot">
+                            <label class="panel-title">Volume (Lots)</label>
+                            <div class="preset-selector" id="graph-lot-presets">
+                                <button class="preset-btn active" data-val="0.25">0.25</button>
+                                <button class="preset-btn" data-val="0.75">0.75</button>
+                                <button class="preset-btn btn-split" data-val="0.75" data-split="true">0.75 Split</button>
+                                <button class="preset-btn btn-split" data-val="0.75" data-split="true" data-scenario="1">0.75 Sc1</button>
+                                <div class="custom-input-wrapper">
+                                    <input type="number" id="graph-input-lot" step="0.01" min="0.01" value="0.25" placeholder="Custom">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- BE Panel -->
+                        <div class="scalp-param-panel" id="panel-graph-be">
+                            <label class="panel-title">Auto break event (pips)</label>
+                            <div class="preset-selector" id="graph-auto-be-presets">
+                                <button class="preset-btn active" data-val="0">off</button>
+                                <button class="preset-btn" data-val="10">10</button>
+                                <button class="preset-btn" data-val="20">20</button>
+                                <button class="preset-btn" data-val="40">40</button>
+                                <button class="preset-btn" data-val="60">60</button>
+                                <div class="custom-input-wrapper">
+                                    <input type="number" id="graph-input-auto-be" step="1" min="0" value="0" placeholder="Custom">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SL Panel -->
+                        <div class="scalp-param-panel" id="panel-graph-sl">
+                            <label class="panel-title">Stop Loss (Points)</label>
+                            <div class="preset-selector" id="graph-sl-presets">
+                                <button class="preset-btn" data-val="10">10</button>
+                                <button class="preset-btn active" data-val="20">20</button>
+                                <button class="preset-btn" data-val="40">40</button>
+                                <button class="preset-btn" data-val="0">None</button>
+                                <div class="custom-input-wrapper">
+                                    <input type="number" id="graph-input-sl-points" step="1" min="0" value="20" placeholder="Custom">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TP Panel -->
+                        <div class="scalp-param-panel" id="panel-graph-tp">
+                            <label class="panel-title">Take Profit (Points)</label>
+                            <div class="preset-selector" id="graph-tp-presets">
+                                <button class="preset-btn" data-val="10">10</button>
+                                <button class="preset-btn" data-val="20">20</button>
+                                <button class="preset-btn active" data-val="40">40</button>
+                                <button class="preset-btn" data-val="0">None</button>
+                                <div class="custom-input-wrapper">
+                                    <input type="number" id="graph-input-tp-points" step="1" min="0" value="40" placeholder="Custom">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Active Positions List -->
+                <div class="quick-positions-section" style="margin-top: 10px;">
+                    <div class="section-header">
+                        <h3>Positions Actives (<span id="graph-pos-count">0</span>)</h3>
+                        <span class="total-pnl-badge" id="graph-total-pnl">0.0 pips</span>
+                    </div>
+                    <div class="quick-positions-list" id="graph-positions-container">
+                        <!-- Filled dynamically -->
+                        <div class="no-positions-placeholder">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <p>Aucune position active</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Graph Pending Orders -->
+                <div class="quick-positions-section" style="margin-top: 10px;">
+                    <div class="section-header">
+                        <h3>Ordres en Attente (<span id="graph-orders-count">0</span>)</h3>
+                    </div>
+                    <div class="quick-positions-list" id="graph-orders-container">
+                        <!-- Filled dynamically -->
+                        <div class="no-positions-placeholder">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <p>Aucun ordre en attente</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Bottom Navigation Bar -->
+        <nav class="app-bottom-nav">
+            <button class="nav-item" data-tab="tab-scalp">
+                <i class="fa-solid fa-bolt"></i>
+                <span>Scalp</span>
+            </button>
+            <button class="nav-item" data-tab="tab-positions">
+                <i class="fa-solid fa-briefcase"></i>
+                <span>Positions</span>
+            </button>
+            <button class="nav-item" data-tab="tab-journal">
+                <i class="fa-solid fa-book"></i>
+                <span>Journal</span>
+            </button>
+            <button class="nav-item active" data-tab="tab-graph">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Graph</span>
+            </button>
+            <button class="nav-item" data-tab="tab-config">
+                <i class="fa-solid fa-gears"></i>
+                <span>Config</span>
+            </button>
+        </nav>
+
+        <!-- SL/TP Modification Modal Sheet (iOS Style bottom sheet) -->
+        <div class="modal-overlay" id="modify-modal">
+            <div class="modal-sheet">
+                <div class="modal-header">
+                    <h3>Modifier SL / TP</h3>
+                    <button class="close-modal-btn" id="close-modal-x"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="mod-ticket">
+                    <input type="hidden" id="mod-acc-type">
+                    
+                    <div class="detail-row highlight-row">
+                        <span>Position:</span>
+                        <strong id="mod-pos-details">BUY 1.0 Lots GER40</strong>
+                    </div>
+                    <div class="detail-row">
+                        <span>Prix d'ouverture:</span>
+                        <span id="mod-open-price">00000.00</span>
+                    </div>
+                    <div class="detail-row">
+                        <span>Prix actuel:</span>
+                        <span id="mod-current-price">00000.00</span>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label for="mod-sl">Stop Loss (Prix)</label>
+                        <div class="num-adjuster">
+                            <button type="button" class="adjust-btn" id="mod-sl-minus"><i class="fa-solid fa-minus"></i></button>
+                            <input type="number" id="mod-sl" step="0.1" value="0.0">
+                            <button type="button" class="adjust-btn" id="mod-sl-plus"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                        <small class="form-help">Mettre 0.0 pour aucun Stop Loss.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="mod-tp">Take Profit (Prix)</label>
+                        <div class="num-adjuster">
+                            <button type="button" class="adjust-btn" id="mod-tp-minus"><i class="fa-solid fa-minus"></i></button>
+                            <input type="number" id="mod-tp" step="0.1" value="0.0">
+                            <button type="button" class="adjust-btn" id="mod-tp-plus"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                        <small class="form-help">Mettre 0.0 pour aucun Take Profit.</small>
+                    </div>
+
+                    <button class="btn btn-primary btn-block btn-large" id="submit-modify-btn" style="margin-top: 20px;">
+                        Appliquer les modifications
+                    </button>
+                    <button class="btn btn-outline-danger btn-block btn-large" id="close-pos-modal-btn" style="margin-top: 10px;">
+                        <i class="fa-solid fa-trash-can"></i> Fermer la Position (Close)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detail Modal Sheet (iOS Style bottom sheet) -->
+        <div class="modal-overlay" id="detail-modal">
+            <div class="modal-sheet">
+                <div class="modal-header">
+                    <h3>Détails de la Position</h3>
+                    <button class="close-modal-btn" id="close-detail-modal-x"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body" id="detail-modal-body" style="padding-bottom: 10px;">
+                    <!-- Filled dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications Container -->
+        <div class="toast-container" id="toast-container"></div>
+        
+    </div>
+
+    <!-- TradingView Lightweight Charts (Standalone Production) -->
+    <script src="/static/js/lightweight-charts.js"></script>
+    
+    <!-- Application Script -->
+    <script src="/static/js/app.js?v=68"></script>
+</body>
+</html>

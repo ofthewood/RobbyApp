@@ -1,0 +1,7 @@
+*.log
+autobe_positions.json
+__pycache__/
+*.pyc
+.gemini/
+.idea/
+.vscode/

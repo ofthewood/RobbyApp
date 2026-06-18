@@ -1,0 +1,10 @@
+{
+    "symbol": "Ger40",
+    "terminal_path_long": "C:/Program Files/ActivTrades  MT5Bull/terminal64.exe",
+    "terminal_path_short": "C:/Program Files/ActivTrades  MT5Bear/terminal64.exe",
+    "default_lot": 0.25,
+    "default_sl_points": 20.0,
+    "default_tp_points": 40.0,
+    "auto_be_pips": 20,
+    "max_spread_pips": 8.0
+}

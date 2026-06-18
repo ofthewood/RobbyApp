@@ -1,0 +1,1808 @@
+/* ==========================================================================
+   DESIGN SYSTEM & VARIABLES
+   ========================================================================== */
+:root {
+    --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-family-heading: 'Outfit', var(--font-family-base);
+
+    /* Sleek Light Theme Color Palette */
+    --bg-app: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-input: #f1f5f9;
+    --border-color: #e2e8f0;
+    
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    
+    --primary-color: #4f46e5; /* Indigo */
+    --primary-hover: #4338ca;
+    
+    /* Trade Colors (Premium HSL based) */
+    --color-buy: hsl(142, 72%, 43%);        /* Deep Emerald Green */
+    --color-buy-bg: hsl(142, 72%, 96%);     /* Very soft green background */
+    --color-sell: hsl(346, 84%, 53%);       /* Sleek Crimson Rose */
+    --color-sell-bg: hsl(346, 84%, 97%);    /* Very soft red background */
+    
+    --color-warning: #f59e0b;
+    --color-info: #0284c7;
+
+    /* Shadow & Radius */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.08);
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    
+    /* Layout Constants */
+    --header-height: 44px;
+    --navbar-height: 65px;
+}
+
+/* ==========================================================================
+   RESET & SYSTEM BASICS
+   ========================================================================== */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent; /* Disable highlight on mobile tap */
+}
+
+body, html {
+    font-family: var(--font-family-base);
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* Avoid whole body bounce scrolling on iOS */
+    position: fixed;
+    top: 0;
+    left: 0;
+}
+
+input, button, select, textarea {
+    font-family: inherit;
+    font-size: inherit;
+    outline: none;
+}
+
+/* ==========================================================================
+   APP WRAPPER & LAYOUT
+   ========================================================================== */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    max-width: 500px; /* Centered mobile container on desktop */
+    margin: 0 auto;
+    background-color: var(--bg-app);
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    position: relative;
+    box-shadow: var(--shadow-lg);
+}
+
+/* ==========================================================================
+   HEADER COMPONENT
+   ========================================================================== */
+.app-header {
+    background-color: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-color);
+    padding: 8px 16px;
+    z-index: 10;
+    flex-shrink: 0;
+}
+
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.logo-accent {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: linear-gradient(135deg, var(--primary-color), #818cf8);
+    color: white;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.logo h1 {
+    font-family: var(--font-family-heading);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    background: linear-gradient(to right, var(--text-primary), var(--text-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Connection Badges */
+.connection-status {
+    display: flex;
+    gap: 8px;
+}
+
+.status-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-card);
+    transition: all 0.3s ease;
+}
+
+.status-badge .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--text-muted);
+}
+
+/* Status States */
+.status-badge.connected {
+    color: var(--color-buy);
+    border-color: rgba(16, 185, 129, 0.3);
+    background-color: var(--color-buy-bg);
+}
+
+.status-badge.connected .status-dot {
+    background-color: var(--color-buy);
+    animation: statusPulse 1.8s infinite ease-in-out;
+}
+
+.status-badge.disconnected {
+    color: var(--color-sell);
+    border-color: rgba(244, 63, 94, 0.3);
+    background-color: var(--color-sell-bg);
+}
+
+.status-badge.disconnected .status-dot {
+    background-color: var(--color-sell);
+}
+
+@keyframes statusPulse {
+    0% { transform: scale(0.9); opacity: 0.6; }
+    50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 4px var(--color-buy); }
+    100% { transform: scale(0.9); opacity: 0.6; }
+}
+
+/* ==========================================================================
+   TICK FLASH ANIMATIONS (PREMIUM UX)
+   ========================================================================== */
+.tick-up {
+    color: white !important;
+    background-color: var(--color-buy) !important;
+    animation: tickFade 0.6s ease-out forwards;
+}
+
+.tick-down {
+    color: white !important;
+    background-color: var(--color-sell) !important;
+    animation: tickFade 0.6s ease-out forwards;
+}
+
+@keyframes tickFade {
+    0% { transform: scale(1.05); }
+    100% { background-color: transparent; }
+}
+
+/* ==========================================================================
+   MAIN VIEWPORT & TABS
+   ========================================================================== */
+.app-main-viewport {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 16px;
+    z-index: 5;
+    /* Smooth inertia scrolling for iOS */
+    -webkit-overflow-scrolling: touch;
+}
+
+.app-main-viewport.viewport-no-scroll {
+    overflow: hidden !important;
+    -webkit-overflow-scrolling: auto !important;
+}
+
+.tab-content {
+    display: none;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.tab-content.active {
+    display: flex;
+    animation: tabFadeIn 0.25s ease-out forwards;
+}
+
+@keyframes tabFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   SCALP TAB COMPONENTS
+   ========================================================================== */
+
+/* Huge Touch Action Order Buttons */
+.live-action-buttons {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    position: relative;
+}
+
+.live-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 18px 12px;
+    color: white;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.live-btn:active {
+    transform: scale(0.96);
+    box-shadow: var(--shadow-sm);
+}
+
+/* BUY button styles */
+.live-buy-btn {
+    background: linear-gradient(135deg, var(--color-buy), hsl(142, 60%, 38%));
+}
+
+.live-buy-btn:hover {
+    filter: brightness(1.05);
+}
+
+/* SELL button styles */
+.live-sell-btn {
+    background: linear-gradient(135deg, var(--color-sell), hsl(346, 75%, 48%));
+}
+
+.live-sell-btn:hover {
+    filter: brightness(1.05);
+}
+
+/* Center Spread Badge */
+.spread-badge-middle {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    color: var(--text-secondary);
+    font-family: var(--font-family-heading);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 12px;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.live-btn-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    opacity: 0.9;
+    margin-bottom: 4px;
+}
+
+.live-btn-price {
+    font-family: var(--font-family-heading);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 2px;
+}
+
+.live-btn-sub {
+    font-size: 9px;
+    opacity: 0.7;
+}
+
+/* Param Card & Groups */
+.param-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
+.param-card h3 {
+    font-family: var(--font-family-heading);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    letter-spacing: -0.1px;
+}
+
+.param-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+
+.param-group:last-child {
+    margin-bottom: 0;
+}
+
+.param-group label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Preset Selector Layout */
+.preset-selector {
+    display: flex;
+    background-color: var(--bg-input);
+    padding: 3px;
+    border-radius: var(--radius-sm);
+    gap: 2px;
+}
+
+.preset-btn {
+    flex: 1;
+    border: none;
+    background-color: transparent;
+    padding: 8px 4px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.preset-btn.active {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Custom Input Field Inside Presets */
+.custom-input-wrapper {
+    flex: 1.3;
+    display: flex;
+    align-items: center;
+    background-color: transparent;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid transparent;
+}
+
+.custom-input-wrapper:focus-within {
+    border-color: rgba(79, 70, 229, 0.3);
+    background-color: var(--bg-card);
+}
+
+.custom-input-wrapper input {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    padding: 0 4px;
+}
+
+/* Remove default number input spinner */
+.custom-input-wrapper input::-webkit-outer-spin-button,
+.custom-input-wrapper input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Section Headers */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.section-header h3 {
+    font-family: var(--font-family-heading);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.total-pnl-badge {
+    font-family: var(--font-family-heading);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background-color: var(--bg-input);
+    color: var(--text-secondary);
+}
+
+/* Profit and loss colors */
+.profit-text {
+    color: var(--color-buy) !important;
+}
+.loss-text {
+    color: var(--color-sell) !important;
+}
+
+.profit-bg {
+    background-color: var(--color-buy-bg) !important;
+    color: var(--color-buy) !important;
+}
+.loss-bg {
+    background-color: var(--color-sell-bg) !important;
+    color: var(--color-sell) !important;
+}
+
+/* Quick Open Position cards */
+.quick-positions-section {
+    margin-top: 4px;
+}
+
+.quick-positions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.position-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 18px; /* Smooth rounded corners as in the drawing */
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.position-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.card-row-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.type-tag {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: lowercase; /* buy / sell in lowercase as in sketch */
+    padding: 4px 12px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    line-height: 1;
+}
+
+.type-tag.buy {
+    border-color: var(--color-buy);
+    color: var(--color-buy);
+    background-color: var(--color-buy-bg);
+}
+
+.type-tag.sell {
+    border-color: var(--color-sell);
+    color: var(--color-sell);
+    background-color: var(--color-sell-bg);
+}
+
+.symbol-vol-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.symbol-name {
+    color: var(--text-primary);
+}
+
+.volume-lots {
+    color: var(--text-secondary);
+}
+
+.elapsed-time {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-right: 20px; /* Leave space for floating close button */
+}
+
+.card-row-bottom {
+    display: flex;
+    justify-content: space-around;
+    border-top: 1px solid var(--border-color);
+    padding-top: 10px;
+    margin-top: 2px;
+}
+
+.metric-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+}
+
+.metric-col .metric-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.metric-col .metric-value {
+    font-family: var(--font-family-heading);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* Close button on card */
+.close-card-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: var(--bg-input);
+    color: var(--text-secondary);
+    border: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s ease;
+    z-index: 5;
+}
+
+.close-card-btn:hover {
+    background-color: var(--color-sell-bg);
+    color: var(--color-sell);
+}
+
+/* Placeholders */
+.no-positions-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 10px;
+    color: var(--text-muted);
+    gap: 8px;
+    text-align: center;
+}
+
+.no-positions-placeholder i {
+    font-size: 24px;
+    opacity: 0.6;
+}
+
+.no-positions-placeholder p {
+    font-size: 12px;
+}
+
+/* ==========================================================================
+   POSITIONS TAB COMPONENTS
+   ========================================================================== */
+.summary-dashboard {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+}
+
+.summary-metric {
+    flex: 1;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 10px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+}
+
+.metric-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 2px;
+    letter-spacing: 0.2px;
+}
+
+.metric-val {
+    font-family: var(--font-family-heading);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.positions-full-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
+/* Positions Cards list wrapper */
+.positions-cards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+/* Global button styles */
+.btn {
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-sm {
+    padding: 5px 8px;
+    font-size: 10px;
+    border-radius: 4px;
+}
+
+.btn-outline-danger {
+    background-color: transparent;
+    color: var(--color-sell);
+    border: 1px solid var(--color-sell);
+}
+
+.btn-outline-danger:hover {
+    background-color: var(--color-sell-bg);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+}
+
+.btn-block {
+    display: flex;
+    width: 100%;
+}
+
+.btn-large {
+    padding: 12px 16px;
+    font-size: 13px;
+    border-radius: var(--radius-sm);
+}
+
+.btn-action {
+    background-color: var(--bg-input);
+    color: var(--text-secondary);
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.btn-action:hover {
+    background-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.btn-action.close-act:hover {
+    background-color: var(--color-sell-bg);
+    color: var(--color-sell);
+}
+
+/* ==========================================================================
+   CONFIG TAB COMPONENTS
+   ========================================================================== */
+.config-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"] {
+    background-color: var(--bg-input);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--text-primary);
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+.form-group input:focus {
+    border-color: rgba(79, 70, 229, 0.4);
+    background-color: var(--bg-card);
+}
+
+.form-help {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.account-details-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.account-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    background-color: var(--bg-app);
+}
+
+.account-card h4 {
+    font-family: var(--font-family-heading);
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.long-title { color: var(--color-buy); }
+.short-title { color: var(--color-sell); }
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-row span {
+    color: var(--text-secondary);
+}
+
+.detail-row strong, .detail-row span:last-child {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.highlight-row {
+    border-bottom: 1.5px solid var(--border-color);
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+}
+
+.highlight-row strong {
+    font-size: 13px;
+    color: var(--primary-color) !important;
+}
+
+/* ==========================================================================
+   NAVIGATION BAR
+   ========================================================================== */
+.app-bottom-nav {
+    display: flex;
+    background-color: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border-color);
+    height: var(--navbar-height);
+    z-index: 10;
+    flex-shrink: 0;
+    /* Soft padding for iPhone bottom safe area */
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    gap: 3px;
+    transition: all 0.2s ease;
+}
+
+.nav-item i {
+    font-size: 18px;
+}
+
+.nav-item span {
+    font-size: 9px;
+    font-weight: 500;
+}
+
+.nav-item.active {
+    color: var(--primary-color);
+}
+
+/* ==========================================================================
+   MODAL SHEET (iOS Bottom Sheet Style)
+   ========================================================================== */
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(15, 23, 42, 0.3);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 20;
+    display: none;
+    align-items: flex-end;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal-sheet {
+    background-color: var(--bg-card);
+    width: 100%;
+    border-top-left-radius: var(--radius-lg);
+    border-top-right-radius: var(--radius-lg);
+    box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.1);
+    padding: 20px 16px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.modal-header h3 {
+    font-family: var(--font-family-heading);
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.close-modal-btn {
+    border: none;
+    background-color: var(--bg-input);
+    color: var(--text-secondary);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+/* Number adjustments (+/- controls) */
+.num-adjuster {
+    display: flex;
+    background-color: var(--bg-input);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+    align-items: center;
+}
+
+.adjust-btn {
+    background-color: var(--bg-card);
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+}
+
+.adjust-btn:active {
+    transform: scale(0.95);
+}
+
+.num-adjuster input {
+    flex: 1;
+    border: none;
+    background-color: transparent;
+    text-align: center;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+/* ==========================================================================
+   TOAST NOTIFICATIONS
+   ========================================================================== */
+.toast-container {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 50;
+    pointer-events: none; /* Let clicks pass through if needed */
+}
+
+.toast {
+    background-color: var(--bg-card);
+    border-left: 4px solid var(--primary-color);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    pointer-events: auto;
+    font-size: 11px;
+    font-weight: 500;
+    animation: toastSlideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    transition: all 0.3s ease;
+}
+
+@keyframes toastSlideIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.toast.toast-success { border-left-color: var(--color-buy); }
+.toast.toast-danger { border-left-color: var(--color-sell); }
+.toast.toast-warning { border-left-color: var(--color-warning); }
+
+.toast-icon {
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+}
+
+.toast-success .toast-icon { color: var(--color-buy); }
+.toast-danger .toast-icon { color: var(--color-sell); }
+.toast-warning .toast-icon { color: var(--color-warning); }
+
+.toast-message {
+    flex-grow: 1;
+}
+
+/* Card actions row at the bottom of positions cards */
+.card-actions-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 6px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 10px;
+}
+
+.card-action-btn {
+    flex: 1;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-app);
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.card-action-btn:active {
+    transform: scale(0.97);
+}
+
+.card-action-btn.btn-detail {
+    background-color: var(--bg-input);
+    border-color: transparent;
+}
+
+.card-action-btn.btn-detail:hover {
+    background-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.card-action-btn.btn-actions {
+    background-color: var(--bg-card);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.card-action-btn.btn-actions:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Sub-actions Row (SL, TP, AutoBE, Close) */
+.card-sub-actions-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* Guarantees exactly equal width for all 4 buttons */
+    gap: 8px;
+    margin-top: 8px;
+    border-top: 1px dashed var(--border-color);
+    padding-top: 8px;
+}
+
+.sub-action-btn {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-card);
+    color: var(--text-secondary);
+    border-radius: 10px;
+    padding: 12px 8px; /* Taller tap target optimized for thumb touch */
+    font-size: 13px;    /* Slightly larger text for instant readability */
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+}
+
+.sub-action-btn:active {
+    transform: scale(0.96);
+}
+
+.sub-action-btn.btn-sl-toggle.active,
+.sub-action-btn.btn-tp-toggle.active,
+.sub-action-btn.btn-autobe-toggle.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.sub-action-btn.btn-close-action {
+    background-color: var(--color-sell-bg);
+    color: var(--color-sell);
+    border-color: rgba(244, 63, 94, 0.3);
+}
+
+.sub-action-btn.btn-close-action:hover {
+    background-color: var(--color-sell);
+    color: white;
+}
+
+/* Edit Panel (SL/TP Details) */
+.card-edit-panel {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* 2 equal columns for larger buttons */
+    gap: 10px 8px; /* 10px vertical gap, 8px horizontal gap */
+    margin-top: 8px;
+    padding: 10px;
+    border-radius: var(--radius-md);
+    background-color: var(--bg-input);
+    border: 1px solid var(--border-color);
+    animation: panelSlideDown 0.2s ease-out forwards;
+}
+
+@keyframes panelSlideDown {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.input-with-label {
+    display: flex;
+    flex-direction: column;
+}
+}
+
+.field-label {
+    font-size: 8px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 2px;
+    letter-spacing: 0.3px;
+}
+
+.input-apply-group {
+    display: flex;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-card);
+    height: 34px; /* Balanced height for touch targets */
+}
+
+.panel-input {
+    flex: 1;
+    border: none;
+    background-color: transparent;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+    padding: 0 4px;
+    width: 100%;
+}
+
+.panel-input::-webkit-outer-spin-button,
+.panel-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.apply-input-btn {
+    border: none;
+    background-color: var(--color-buy-bg);
+    color: var(--color-buy);
+    width: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 10px;
+}
+
+.apply-input-btn:hover {
+    background-color: var(--color-buy);
+    color: white;
+}
+
+.preset-action-btn {
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-card);
+    color: var(--text-secondary);
+    border-radius: 6px;
+    height: 34px;       /* Enlarged height for better touch target */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;    /* Enlarged font size for readability */
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.preset-action-btn:hover {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.preset-action-btn.btn-slbe {
+    border-color: var(--color-info);
+    color: var(--color-info);
+    background-color: hsl(200, 85%, 97%);
+}
+
+.preset-action-btn.btn-slbe:hover {
+    background-color: var(--color-info);
+    color: white;
+    border-color: var(--color-info);
+}
+
+.preset-action-btn.btn-sl-none,
+.preset-action-btn.btn-tp-none,
+.preset-action-btn.btn-autobe-none {
+    border-color: var(--text-muted);
+    color: var(--text-secondary);
+}
+
+.preset-action-btn.btn-sl-none:hover,
+.preset-action-btn.btn-tp-none:hover,
+.preset-action-btn.btn-autobe-none:hover {
+    background-color: var(--text-secondary);
+    color: white;
+    border-color: var(--text-secondary);
+}
+
+.preset-action-btn.btn-close-partial {
+    border-color: var(--color-warning);
+    color: var(--color-warning);
+    background-color: rgba(245, 158, 11, 0.08);
+}
+
+.preset-action-btn.btn-close-partial:hover {
+    background-color: var(--color-warning);
+    color: white;
+    border-color: var(--color-warning);
+}
+
+.preset-action-btn.btn-close-full {
+    border-color: var(--color-sell);
+    color: var(--color-sell);
+    background-color: var(--color-sell-bg);
+}
+
+.preset-action-btn.btn-close-full:hover {
+    background-color: var(--color-sell);
+    color: white;
+    border-color: var(--color-sell);
+}
+
+/* Unified/Simplified Scalp Console Card */
+.scalp-console-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Compact parameter bar below Buy/Sell */
+.scalp-param-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-card);
+    padding: 4px;
+}
+
+.param-bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 4px;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
+    user-select: none;
+    border: 1.5px dashed transparent;
+}
+
+.param-bar-col.clickable-param {
+    cursor: pointer;
+}
+
+.param-bar-col.clickable-param:hover {
+    background-color: var(--bg-input);
+}
+
+.param-bar-col.active-param-col {
+    background-color: #dbeafe !important; /* Soft blue background matching sketch */
+    border-color: #ef4444; /* Soft red border matching the sketch */
+    border-style: solid;
+}
+
+.param-bar-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.param-bar-value {
+    font-family: var(--font-family-heading);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* Dynamic dropdown panels below status row */
+.scalp-param-panel-container {
+    width: 100%;
+}
+
+.scalp-param-panel {
+    display: none;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    box-shadow: var(--shadow-sm);
+    animation: slideDownPanel 0.2s ease-out forwards;
+}
+
+.scalp-param-panel .panel-title {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 8px;
+}
+
+@keyframes slideDownPanel {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Graph Tab Styling */
+#tab-graph {
+    height: 100%;
+    overflow-y: auto;
+    display: none;
+    padding-bottom: 40px; /* Comfortable scrolling room at the bottom of the page */
+}
+
+#tab-graph.active {
+    display: block;
+}
+
+.graph-container-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 8px;
+    box-shadow: var(--shadow-sm);
+    height: 280px; /* Default height */
+    min-height: 150px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    touch-action: none !important; /* Prevents scroll interception on mobile */
+}
+
+/* Resizer Handle Styling */
+.graph-resizer {
+    height: 14px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: ns-resize;
+    user-select: none;
+    touch-action: none; /* Crucial for touch dragging */
+    margin: 4px 0;
+    flex-shrink: 0;
+}
+
+.resizer-handle-bar {
+    width: 40px;
+    height: 4px;
+    background-color: var(--text-muted);
+    border-radius: 2px;
+    transition: background-color 0.2s ease, width 0.2s ease;
+    pointer-events: none; /* Ignore pointer events on child bar */
+}
+
+.graph-resizer:hover .resizer-handle-bar,
+.graph-resizer.dragging .resizer-handle-bar {
+    background-color: var(--primary-color);
+    width: 60px;
+}
+
+#tradingview_chart iframe {
+    touch-action: none !important; /* Forces Safari/Chrome to let iframe handle drag gestures */
+}
+
+/* ==========================================================================
+   RESPONSIVE DESIGN (DESKTOP)
+   ========================================================================== */
+@media (min-width: 768px) {
+    /* Responsive styling for testing/viewing on large screens */
+    body {
+        background-color: #0f172a; /* Slate 900 background outside container */
+        overflow: auto;
+    }
+    
+    .app-container {
+        height: 90vh;
+        margin-top: 5vh;
+        border-radius: 20px;
+        overflow: hidden;
+        border: none;
+    }
+}
+
+/* ==========================================================================
+   COMPACT POSITIONS TABLE & INLINE EDIT PANELS
+   ========================================================================== */
+.positions-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 4px;
+}
+
+.positions-table th {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 10px 4px;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.positions-table td {
+    padding: 12px 4px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    user-select: none;
+}
+
+.positions-table tr.position-row {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.positions-table tr.position-row:hover {
+    background-color: rgba(241, 245, 249, 0.5);
+}
+
+.positions-table td.type-cell {
+    width: 30px;
+}
+
+.positions-table td.price-cell {
+    color: var(--primary-color);
+}
+
+.positions-table td.lot-cell {
+    color: var(--text-secondary);
+}
+
+/* Cell active styles: HSL-tailored colors, soft blue background with red border inside the cell */
+.positions-table td.active-cell {
+    background-color: #dbeafe !important;
+    box-shadow: inset 0 0 0 1.5px #ef4444 !important;
+    border-radius: 6px;
+}
+
+/* Inline Edit Panel Row */
+.positions-table tr.panel-row {
+    background-color: var(--bg-app);
+}
+
+.positions-table tr.panel-row td {
+    padding: 8px 6px 12px 6px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.inline-edit-panel {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: var(--shadow-md);
+    animation: panelSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes panelSlideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.inline-adjuster-grid, .inline-preset-grid, .inline-close-grid {
+    display: grid;
+    gap: 6px;
+}
+
+.inline-adjuster-grid {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.inline-preset-grid {
+    grid-template-columns: repeat(5, 1fr);
+}
+
+.inline-preset-grid.be-presets {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.inline-close-grid {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+/* Buttons inside Inline Panel */
+.inline-btn {
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-input);
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.inline-btn:active {
+    transform: scale(0.96);
+}
+
+.inline-btn:hover {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.inline-btn.preset-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.inline-btn.btn-slbe {
+    border-color: var(--color-info);
+    color: var(--color-info);
+    background-color: hsl(200, 85%, 97%);
+}
+
+.inline-btn.btn-slbe:hover {
+    background-color: var(--color-info);
+    color: white;
+    border-color: var(--color-info);
+}
+
+.inline-btn.btn-close-partial {
+    border-color: var(--color-warning);
+    color: var(--color-warning);
+    background-color: rgba(245, 158, 11, 0.08);
+}
+
+.inline-btn.btn-close-partial:hover {
+    background-color: var(--color-warning);
+    color: white;
+    border-color: var(--color-warning);
+}
+
+.inline-btn.btn-close-full {
+    border-color: var(--color-sell);
+    color: var(--color-sell);
+    background-color: var(--color-sell-bg);
+}
+
+.inline-btn.btn-close-full:hover {
+    background-color: var(--color-sell);
+    color: white;
+    border-color: var(--color-sell);
+}
+
+/* Compact Type Badge for tables */
+.positions-table td .type-tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+    line-height: 1;
+    display: inline-block;
+}
+
+/* Sleek Live Price Bar below Chart in Graph Tab */
+.graph-price-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 8px 16px;
+    box-shadow: var(--shadow-sm);
+    margin-top: 8px;
+}
+
+.graph-price-bar .price-side {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.graph-price-bar .price-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.graph-price-bar .price-val {
+    font-family: var(--font-family-heading);
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-primary);
+    transition: background-color 0.2s ease;
+    border-radius: 4px;
+    padding: 2px 6px;
+}
+
+.graph-price-bar .price-spread {
+    background-color: var(--bg-input);
+    color: var(--text-secondary);
+    font-family: var(--font-family-heading);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 10px;
+    user-select: none;
+    pointer-events: none;
+}
+
+/* Timeframe Selector Bar for the Chart */
+.chart-timeframe-selector {
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    background-color: var(--bg-card);
+    border-bottom: 1px solid var(--border-color);
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* Floating Toggle Button for Console Visibility */
+.floating-toggle-btn {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    z-index: 15; /* Sits firmly on top of Lightweight Charts canvas elements */
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.floating-toggle-btn:active {
+    transform: scale(0.92);
+}
+
+.floating-toggle-btn:hover {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-lg);
+}
+
+.floating-toggle-btn.hidden-state {
+    background-color: var(--color-sell-bg);
+    color: var(--color-sell);
+    border-color: rgba(244, 63, 94, 0.3);
+}
+
+.tf-btn {
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-input);
+    color: var(--text-secondary);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.tf-btn:active {
+    transform: scale(0.95);
+}
+
+.tf-btn:hover {
+    background-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.tf-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Custom styling for active Split preset button */
+.preset-btn.btn-split.active {
+    color: var(--primary-color);
+    font-weight: 700;
+}
