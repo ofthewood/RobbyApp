@@ -1236,14 +1236,14 @@ function generateInlinePanelHTML(pos, slPips, tpPips, autobeVal) {
                 <button class="inline-btn" onclick="adjustSL(${pos.ticket}, -10)">-10</button>
                 <button class="inline-btn" onclick="adjustSL(${pos.ticket}, -1)">-1</button>
                 <button class="inline-btn" onclick="adjustSL(${pos.ticket}, 1)">+1</button>
-                <button class="inline-btn" onclick="adjustSL(${pos.ticket}, 10)">10</button>
+                <button class="inline-btn" onclick="adjustSL(${pos.ticket}, 10)">+10</button>
             </div>
             <div class="inline-preset-grid">
                 <button class="inline-btn preset-btn ${slPips === '-' ? 'active' : ''}" onclick="applyQuickSL(${pos.ticket}, 0)">off</button>
                 <button class="inline-btn preset-btn btn-slbe ${slPips === '0' ? 'active' : ''}" onclick="applySLBE(${pos.ticket})">SLBE</button>
-                <button class="inline-btn preset-btn ${slPips === '-20' ? 'active' : ''}" onclick="applyQuickSL(${pos.ticket}, 20)">20</button>
-                <button class="inline-btn preset-btn ${slPips === '-40' ? 'active' : ''}" onclick="applyQuickSL(${pos.ticket}, 40)">40</button>
-                <button class="inline-btn preset-btn ${slPips === '-60' ? 'active' : ''}" onclick="applyQuickSL(${pos.ticket}, 60)">60</button>
+                <button class="inline-btn preset-btn ${slPips === '-10' ? 'active' : ''}" onclick="applyQuickSL(${pos.ticket}, 10)">-10</button>
+                <button class="inline-btn preset-btn ${slPips === '-20' ? 'active' : ''}" onclick="applyQuickSL(${pos.ticket}, 20)">-20</button>
+                <button class="inline-btn preset-btn ${slPips === '-40' ? 'active' : ''}" onclick="applyQuickSL(${pos.ticket}, 40)">-40</button>
             </div>
         `;
     } else if (state.activePanelType === 'TP') {
@@ -1252,7 +1252,7 @@ function generateInlinePanelHTML(pos, slPips, tpPips, autobeVal) {
                 <button class="inline-btn" onclick="adjustTP(${pos.ticket}, -10)">-10</button>
                 <button class="inline-btn" onclick="adjustTP(${pos.ticket}, -1)">-1</button>
                 <button class="inline-btn" onclick="adjustTP(${pos.ticket}, 1)">+1</button>
-                <button class="inline-btn" onclick="adjustTP(${pos.ticket}, 10)">10</button>
+                <button class="inline-btn" onclick="adjustTP(${pos.ticket}, 10)">+10</button>
             </div>
             <div class="inline-preset-grid">
                 <button class="inline-btn preset-btn ${tpPips === '-' || tpPips === '0' ? 'active' : ''}" onclick="applyQuickTP(${pos.ticket}, 0)">off</button>
@@ -1268,7 +1268,7 @@ function generateInlinePanelHTML(pos, slPips, tpPips, autobeVal) {
                 <button class="inline-btn" onclick="adjustAutoBE(${pos.ticket}, -10)">-10</button>
                 <button class="inline-btn" onclick="adjustAutoBE(${pos.ticket}, -1)">-1</button>
                 <button class="inline-btn" onclick="adjustAutoBE(${pos.ticket}, 1)">+1</button>
-                <button class="inline-btn" onclick="adjustAutoBE(${pos.ticket}, 10)">10</button>
+                <button class="inline-btn" onclick="adjustAutoBE(${pos.ticket}, 10)">+10</button>
             </div>
             <div class="inline-preset-grid be-presets">
                 <button class="inline-btn preset-btn ${autobeVal === 0 ? 'active' : ''}" onclick="applyQuickPositionAutoBE(${pos.ticket}, 0)">off</button>
