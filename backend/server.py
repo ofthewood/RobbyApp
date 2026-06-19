@@ -140,6 +140,11 @@ def save_autobe_overrides(data: dict):
         print(f"Error saving autobe overrides: {e}")
         return False
 
+def is_single_mode(config: dict) -> bool:
+    path_long = config.get("terminal_path_long", "").strip().lower().replace("\\", "/")
+    path_short = config.get("terminal_path_short", "").strip().lower().replace("\\", "/")
+    return path_long == path_short and path_long != ""
+
 def start_worker_process(port: int, path: str, account_type: str):
     """Start a worker subprocess and redirect its logs to a file."""
     worker_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "worker.py")
@@ -190,12 +195,18 @@ def terminate_worker(account_type: str):
         workers[account_type] = None
 
 def start_all_workers(config):
-    """Start both Long and Short worker subprocesses."""
+    """Start worker subprocesses based on mode (Single or Double account)."""
     # Ensure existing workers are stopped
     stop_all_workers()
     
-    workers["long"] = start_worker_process(8011, config["terminal_path_long"], "long")
-    workers["short"] = start_worker_process(8012, config["terminal_path_short"], "short")
+    if is_single_mode(config):
+        print("[Server] Single Account Mode detected. Spawning only the Long worker on port 8011.")
+        workers["long"] = start_worker_process(8011, config["terminal_path_long"], "long")
+        workers["short"] = None
+    else:
+        print("[Server] Double Account Mode detected. Spawning both workers on ports 8011 and 8012.")
+        workers["long"] = start_worker_process(8011, config["terminal_path_long"], "long")
+        workers["short"] = start_worker_process(8012, config["terminal_path_short"], "short")
 
 def stop_all_workers():
     """Stop both workers."""
@@ -259,7 +270,7 @@ async def auto_be_loop():
                             
                     if needs_be:
                         print(f"[AutoBE] Triggered for ticket #{ticket} ({pos_type}). Profit: {pips_profit:.1f} pips >= {pos_auto_be}. Moving SL to entry {price_open}.")
-                        target_port = 8011 if account_type.lower() == "long" else 8012
+                        target_port = 8011 if (is_single_mode(config) or account_type.lower() == "long") else 8012
                         worker_url = f"http://127.0.0.1:{target_port}/position/modify"
                         payload = {
                             "ticket": ticket,
@@ -289,7 +300,8 @@ async def quote_polling_loop():
             symbol = config["symbol"]
             
             quote = None
-            for port in [8011, 8012]:
+            ports = [8011] if is_single_mode(config) else [8011, 8012]
+            for port in ports:
                 try:
                     url = f"http://127.0.0.1:{port}/quote?symbol={symbol}"
                     res = await http_client.get(url, timeout=0.15)
@@ -373,6 +385,7 @@ async def get_index():
 @app.get("/api/status")
 async def get_status():
     """Aggregate status from both workers."""
+    config = load_config()
     status_long = {"connected": False, "error": "Not queried"}
     status_short = {"connected": False, "error": "Not queried"}
     
@@ -382,11 +395,14 @@ async def get_status():
     except Exception as e:
         status_long = {"connected": False, "error": str(e)}
         
-    try:
-        res = await http_client.get("http://127.0.0.1:8012/status", timeout=1.0)
-        status_short = res.json()
-    except Exception as e:
-        status_short = {"connected": False, "error": str(e)}
+    if is_single_mode(config):
+        status_short = status_long.copy()
+    else:
+        try:
+            res = await http_client.get("http://127.0.0.1:8012/status", timeout=1.0)
+            status_short = res.json()
+        except Exception as e:
+            status_short = {"connected": False, "error": str(e)}
         
     return {
         "long_terminal": status_long,
@@ -408,13 +424,14 @@ async def get_positions():
     except Exception as e:
         print(f"Error fetching positions from Long worker: {e}")
         
-    # Fetch from Short worker
-    try:
-        res = await http_client.get(f"http://127.0.0.1:8012/positions?symbol={symbol}", timeout=1.0)
-        if res.status_code == 200:
-            positions.extend(res.json())
-    except Exception as e:
-        print(f"Error fetching positions from Short worker: {e}")
+    if not is_single_mode(config):
+        # Fetch from Short worker
+        try:
+            res = await http_client.get(f"http://127.0.0.1:8012/positions?symbol={symbol}", timeout=1.0)
+            if res.status_code == 200:
+                positions.extend(res.json())
+        except Exception as e:
+            print(f"Error fetching positions from Short worker: {e}")
         
     # Enrich positions with custom AutoBE thresholds and perform automatic pruning
     overrides = load_autobe_overrides()
@@ -453,13 +470,14 @@ async def get_api_orders():
     except Exception as e:
         print(f"Error fetching orders from Long worker: {e}")
         
-    # Fetch from Short worker
-    try:
-        res = await http_client.get(f"http://127.0.0.1:8012/orders?symbol={symbol}", timeout=1.0)
-        if res.status_code == 200:
-            orders.extend(res.json())
-    except Exception as e:
-        print(f"Error fetching orders from Short worker: {e}")
+    if not is_single_mode(config):
+        # Fetch from Short worker
+        try:
+            res = await http_client.get(f"http://127.0.0.1:8012/orders?symbol={symbol}", timeout=1.0)
+            if res.status_code == 200:
+                orders.extend(res.json())
+        except Exception as e:
+            print(f"Error fetching orders from Short worker: {e}")
         
     return orders
 
@@ -508,7 +526,7 @@ async def place_order(req: OrderRequest):
                 )
     
     action = req.action.upper()
-    target_port = 8011 if action == "BUY" else 8012
+    target_port = 8011 if (is_single_mode(config) or action == "BUY") else 8012
     worker_url = f"http://127.0.0.1:{target_port}/order"
     
     # Check if this is a split order request for 0.75 lot
@@ -601,7 +619,7 @@ async def close_position(req: CloseRequest):
     config = load_config()
     symbol = config["symbol"]
     
-    target_port = 8011 if req.account_type.lower() == "long" else 8012
+    target_port = 8011 if (is_single_mode(config) or req.account_type.lower() == "long") else 8012
     worker_url = f"http://127.0.0.1:{target_port}/position/close"
     
     payload = {
@@ -630,7 +648,8 @@ class CancelOrderRequest(BaseModel):
 @app.post("/api/order/cancel")
 async def cancel_order(req: CancelOrderRequest):
     """Route order cancel to correct worker."""
-    target_port = 8011 if req.account_type.lower() == "long" else 8012
+    config = load_config()
+    target_port = 8011 if (is_single_mode(config) or req.account_type.lower() == "long") else 8012
     worker_url = f"http://127.0.0.1:{target_port}/order/cancel"
     
     payload = {
@@ -681,7 +700,7 @@ async def modify_position(req: ModifyRequest):
     config = load_config()
     symbol = config["symbol"]
     
-    target_port = 8011 if req.account_type.lower() == "long" else 8012
+    target_port = 8011 if (is_single_mode(config) or req.account_type.lower() == "long") else 8012
     worker_url = f"http://127.0.0.1:{target_port}/position/modify"
     
     payload = {
@@ -771,8 +790,10 @@ async def stream_quotes(request: Request):
     return StreamingResponse(quote_generator(), media_type="text/event-stream")
 
 async def fetch_from_worker(endpoint: str, params: dict):
+    config = load_config()
+    ports = [8011] if is_single_mode(config) else [8011, 8012]
     # Try long worker first, then short worker
-    for port in [8011, 8012]:
+    for port in ports:
         try:
             url = f"http://127.0.0.1:{port}{endpoint}"
             res = await http_client.get(url, params=params, timeout=5.0)
@@ -956,8 +977,9 @@ async def get_history():
     
     deals = []
     
-    # Query both Long (8011) and Short (8012) workers
-    for port in [8011, 8012]:
+    # Query workers
+    ports = [8011] if is_single_mode(config) else [8011, 8012]
+    for port in ports:
         try:
             url = f"http://127.0.0.1:{port}/history"
             res = await http_client.get(url, params=params, timeout=5.0)
