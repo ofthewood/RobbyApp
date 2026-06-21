@@ -51,15 +51,53 @@ def get_filling_type(symbol):
         return mt5.ORDER_FILLING_RETURN
 
 def get_timezone_offset(symbol: str) -> int:
-    """Calculate the timezone offset between the MT5 broker terminal time and UTC in seconds."""
+    """Calculate the timezone offset between the MT5 broker terminal time and UTC in seconds,
+    using a local cache file to persist the offset during weekends/market closure."""
     import time
+    import json
+    import os
+    
+    cache_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "timezone_offset_cache.json")
+    
+    # Try to load cached offset first as a fallback
+    cached_offset = None
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                cached_offset = data.get("offset")
+        except Exception:
+            pass
+
     tick = mt5.symbol_info_tick(symbol)
     if tick is None:
-        return 0
-    diff = int(tick.time) - int(time.time())
-    # Round to nearest 15 minutes to adjust for network latency
-    offset = round(diff / 900) * 900
-    return offset
+        return cached_offset if cached_offset is not None else 0
+        
+    current_time = int(time.time())
+    tick_time = int(tick.time)
+    
+    # If the tick is fresh (less than 2 hours old), calculate and cache the offset
+    if abs(current_time - tick_time) < 7200:
+        diff = tick_time - current_time
+        offset = round(diff / 900) * 900
+        
+        # Save to cache
+        try:
+            with open(cache_file, "w", encoding="utf-8") as f:
+                json.dump({"offset": offset, "updated_at": current_time}, f)
+        except Exception as e:
+            print(f"Error saving timezone offset cache: {e}")
+            
+        return offset
+    else:
+        # Market is closed or terminal is offline; use cached offset if available
+        if cached_offset is not None:
+            return cached_offset
+            
+        # Fallback if no cache exists yet (e.g. first run on a weekend)
+        diff = tick_time - current_time
+        offset = round(diff / 900) * 900
+        return offset
 
 @app.on_event("startup")
 async def startup_event():
