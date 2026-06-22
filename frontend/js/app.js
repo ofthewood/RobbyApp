@@ -497,8 +497,8 @@ function loadTradingViewWidget() {
             borderUpColor: '#26a69a',
             wickDownColor: '#ef5350',
             wickUpColor: '#26a69a',
-            lastValueVisible: false,
-            priceLineVisible: false
+            lastValueVisible: true,
+            priceLineVisible: true
         });
         
         // 3. Add Indicators (MM50 & BB20, 2.5)
