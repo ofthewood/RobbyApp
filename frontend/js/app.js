@@ -1178,7 +1178,7 @@ function updateChartPriceLines(symbolPositions, symbolOrders) {
             lineWidth: 2,
             lineStyle: 1, // Dotted
             axisLabelVisible: true,
-            title: `${p.type} ${p.volume.toFixed(2)} #${p.ticket}`,
+            title: `${p.type} ${p.volume.toFixed(2)}`,
         });
         state.chartPriceLines.push(entryLine);
         
@@ -1190,7 +1190,7 @@ function updateChartPriceLines(symbolPositions, symbolOrders) {
                 lineWidth: 1.5,
                 lineStyle: 2, // Dashed
                 axisLabelVisible: true,
-                title: `SL #${p.ticket}`,
+                title: 'SL',
             });
             state.chartPriceLines.push(slLine);
         }
@@ -1203,7 +1203,7 @@ function updateChartPriceLines(symbolPositions, symbolOrders) {
                 lineWidth: 1.5,
                 lineStyle: 2, // Dashed
                 axisLabelVisible: true,
-                title: `TP #${p.ticket}`,
+                title: 'TP',
             });
             state.chartPriceLines.push(tpLine);
         }
@@ -1218,7 +1218,7 @@ function updateChartPriceLines(symbolPositions, symbolOrders) {
             lineWidth: 2,
             lineStyle: 1, // Dotted
             axisLabelVisible: true,
-            title: `${o.type} ${o.volume.toFixed(2)} #${o.ticket}`,
+            title: `${o.type} ${o.volume.toFixed(2)}`,
         });
         state.chartPriceLines.push(orderLine);
         
@@ -1230,7 +1230,7 @@ function updateChartPriceLines(symbolPositions, symbolOrders) {
                 lineWidth: 1.5,
                 lineStyle: 2, // Dashed
                 axisLabelVisible: true,
-                title: `SL #${o.ticket}`,
+                title: 'SL',
             });
             state.chartPriceLines.push(slLine);
         }
@@ -1243,7 +1243,7 @@ function updateChartPriceLines(symbolPositions, symbolOrders) {
                 lineWidth: 1.5,
                 lineStyle: 2, // Dashed
                 axisLabelVisible: true,
-                title: `TP #${o.ticket}`,
+                title: 'TP',
             });
             state.chartPriceLines.push(tpLine);
         }
