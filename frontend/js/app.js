@@ -27,7 +27,9 @@ const state = {
     splitScenario: 0,
     lastHistoryData: null,
     journalUnit: localStorage.getItem('journalUnit') || 'EUR',
-    chartPriceLines: []
+    chartPriceLines: [],
+    bidPriceLine: null,
+    askPriceLine: null
 };
 
 // DOM Elements Cache
@@ -491,6 +493,8 @@ function loadTradingViewWidget() {
         });
         
         // 2. Add Candlestick Series
+        state.bidPriceLine = null;
+        state.askPriceLine = null;
         lwCandlestickSeries = lwChartInstance.addSeries(LightweightCharts.CandlestickSeries, {
             upColor: '#26a69a',
             downColor: '#ef5350',
@@ -498,8 +502,8 @@ function loadTradingViewWidget() {
             borderUpColor: '#26a69a',
             wickDownColor: '#ef5350',
             wickUpColor: '#26a69a',
-            lastValueVisible: true,
-            priceLineVisible: true
+            lastValueVisible: false,
+            priceLineVisible: false
         });
         
         // 3. Add Indicators (MM50 & BB20, 2.5)
@@ -647,6 +651,11 @@ async function loadChartData(symbol, resolution, shouldFit = false) {
             }
         } else if (logicalRange) {
             timeScale.setVisibleLogicalRange(logicalRange);
+        }
+        
+        // Draw initial Bid/Ask lines if available
+        if (state.lastBid > 0 && state.lastAsk > 0) {
+            updateBidAskPriceLines(state.lastBid, state.lastAsk);
         }
         
     } catch (err) {
@@ -803,6 +812,9 @@ function startQuoteStream() {
                 const tickTime = data.time;
                 const price = bid; // bid price for the chart
                 
+                // Update Bid and Ask lines
+                updateBidAskPriceLines(bid, ask);
+                
                 // Get timeframe multiplier in seconds
                 let resSeconds = 15;
                 if (currentResolution === "30S") resSeconds = 30;
@@ -904,6 +916,60 @@ function startQuoteStream() {
         if (elements.graphSellPrice) elements.graphSellPrice.innerText = '----.-';
         if (elements.graphSpreadMiddle) elements.graphSpreadMiddle.innerText = '---';
     };
+}
+
+function updateBidAskPriceLines(bid, ask) {
+    if (!lwChartInstance || !lwCandlestickSeries) return;
+    
+    // Bid line (Red)
+    if (!state.bidPriceLine) {
+        state.bidPriceLine = lwCandlestickSeries.createPriceLine({
+            price: bid,
+            color: '#ef5350', // red matching downColor
+            lineWidth: 1.5,
+            lineStyle: 1, // Dotted
+            axisLabelVisible: true,
+            title: 'BID',
+        });
+    } else {
+        try {
+            state.bidPriceLine.applyOptions({ price: bid });
+        } catch (e) {
+            state.bidPriceLine = lwCandlestickSeries.createPriceLine({
+                price: bid,
+                color: '#ef5350',
+                lineWidth: 1.5,
+                lineStyle: 1,
+                axisLabelVisible: true,
+                title: 'BID',
+            });
+        }
+    }
+    
+    // Ask line (Green)
+    if (!state.askPriceLine) {
+        state.askPriceLine = lwCandlestickSeries.createPriceLine({
+            price: ask,
+            color: '#26a69a', // green matching upColor
+            lineWidth: 1.5,
+            lineStyle: 1, // Dotted
+            axisLabelVisible: true,
+            title: 'ASK',
+        });
+    } else {
+        try {
+            state.askPriceLine.applyOptions({ price: ask });
+        } catch (e) {
+            state.askPriceLine = lwCandlestickSeries.createPriceLine({
+                price: ask,
+                color: '#26a69a',
+                lineWidth: 1.5,
+                lineStyle: 1,
+                axisLabelVisible: true,
+                title: 'ASK',
+            });
+        }
+    }
 }
 
 function flashPrice(element, className) {
