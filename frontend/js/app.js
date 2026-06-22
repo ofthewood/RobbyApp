@@ -26,7 +26,8 @@ const state = {
     isSplitActive: false,
     splitScenario: 0,
     lastHistoryData: null,
-    journalUnit: localStorage.getItem('journalUnit') || 'EUR'
+    journalUnit: localStorage.getItem('journalUnit') || 'EUR',
+    chartPriceLines: []
 };
 
 // DOM Elements Cache
@@ -1077,9 +1078,110 @@ async function fetchPositions() {
         renderQuickOrders(symbolOrders);
         renderFullOrdersTable(orders);
         
+        // Update price lines on Lightweight Charts
+        updateChartPriceLines(symbolPositions, symbolOrders);
+        
     } catch (err) {
         console.error("Error fetching positions/orders:", err);
     }
+}
+
+function updateChartPriceLines(symbolPositions, symbolOrders) {
+    if (!lwChartInstance || !lwCandlestickSeries) return;
+    
+    // Clear old lines
+    if (state.chartPriceLines && state.chartPriceLines.length > 0) {
+        state.chartPriceLines.forEach(line => {
+            try {
+                lwCandlestickSeries.removePriceLine(line);
+            } catch (e) {
+                console.error("Error removing price line:", e);
+            }
+        });
+    }
+    state.chartPriceLines = [];
+    
+    // 1. Draw open positions
+    symbolPositions.forEach(p => {
+        const isBuy = p.type === 'BUY';
+        // Entry price line (dotted line, green for BUY entry, red for SELL entry)
+        const entryColor = isBuy ? '#22c55e' : '#ef5350';
+        const entryLine = lwCandlestickSeries.createPriceLine({
+            price: p.price_open,
+            color: entryColor,
+            lineWidth: 2,
+            lineStyle: 1, // Dotted
+            axisLabelVisible: true,
+            title: `${p.type} ${p.volume.toFixed(2)} #${p.ticket}`,
+        });
+        state.chartPriceLines.push(entryLine);
+        
+        // Stop Loss
+        if (p.sl > 0) {
+            const slLine = lwCandlestickSeries.createPriceLine({
+                price: p.sl,
+                color: '#be123c', // red
+                lineWidth: 1.5,
+                lineStyle: 2, // Dashed
+                axisLabelVisible: true,
+                title: `SL #${p.ticket}`,
+            });
+            state.chartPriceLines.push(slLine);
+        }
+        
+        // Take Profit
+        if (p.tp > 0) {
+            const tpLine = lwCandlestickSeries.createPriceLine({
+                price: p.tp,
+                color: '#15803d', // green
+                lineWidth: 1.5,
+                lineStyle: 2, // Dashed
+                axisLabelVisible: true,
+                title: `TP #${p.ticket}`,
+            });
+            state.chartPriceLines.push(tpLine);
+        }
+    });
+    
+    // 2. Draw pending orders
+    symbolOrders.forEach(o => {
+        // Trigger price line (dotted line, purple for orders)
+        const orderLine = lwCandlestickSeries.createPriceLine({
+            price: o.price_open,
+            color: '#a855f7',
+            lineWidth: 2,
+            lineStyle: 1, // Dotted
+            axisLabelVisible: true,
+            title: `${o.type} ${o.volume.toFixed(2)} #${o.ticket}`,
+        });
+        state.chartPriceLines.push(orderLine);
+        
+        // Stop Loss
+        if (o.sl > 0) {
+            const slLine = lwCandlestickSeries.createPriceLine({
+                price: o.sl,
+                color: '#be123c',
+                lineWidth: 1.5,
+                lineStyle: 2, // Dashed
+                axisLabelVisible: true,
+                title: `SL #${o.ticket}`,
+            });
+            state.chartPriceLines.push(slLine);
+        }
+        
+        // Take Profit
+        if (o.tp > 0) {
+            const tpLine = lwCandlestickSeries.createPriceLine({
+                price: o.tp,
+                color: '#15803d',
+                lineWidth: 1.5,
+                lineStyle: 2, // Dashed
+                axisLabelVisible: true,
+                title: `TP #${o.ticket}`,
+            });
+            state.chartPriceLines.push(tpLine);
+        }
+    });
 }
 
 // ==========================================================================
