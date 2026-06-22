@@ -1616,7 +1616,7 @@ function generateOrdersTableHTML(orders, isQuickView) {
         html += `
             <tr class="order-row" data-ticket="${ord.ticket}">
                 <td class="type-cell"><span class="type-tag ${typeClass}">${typeLetter}</span></td>
-                <td class="price-cell">${ord.price_open.toFixed(1)}</td>
+                <td class="price-cell ${state.activePanelTicket === ord.ticket && state.activePanelType === 'MODIFY_PRICE' ? 'active-cell' : ''}" style="cursor: pointer;" onclick="toggleOrderPanel(${ord.ticket}, 'MODIFY_PRICE')">${ord.price_open.toFixed(1)}</td>
                 <td class="lot-cell">${ord.volume.toFixed(2)}</td>
                 <td class="sl-cell">${slPips}</td>
                 <td class="be-cell">-</td>
@@ -2063,6 +2063,15 @@ function generateOrderInlinePanelHTML(ord) {
                 </button>
             </div>
         `;
+    } else if (state.activePanelType === 'MODIFY_PRICE') {
+        return `
+            <div class="inline-adjuster-grid">
+                <button class="inline-btn" onclick="adjustOrderPrice(${ord.ticket}, -10)">-10</button>
+                <button class="inline-btn" onclick="adjustOrderPrice(${ord.ticket}, -1)">-1</button>
+                <button class="inline-btn" onclick="adjustOrderPrice(${ord.ticket}, 1)">+1</button>
+                <button class="inline-btn" onclick="adjustOrderPrice(${ord.ticket}, 10)">+10</button>
+            </div>
+        `;
     }
     return '';
 }
@@ -2077,6 +2086,40 @@ async function cancelOrderFull(ticket, accountType) {
     renderFullOrdersTable(state.orders);
     
     await handleCancelOrder(ticket, accountType);
+}
+
+async function adjustOrderPrice(ticket, delta) {
+    const ord = state.orders.find(o => o.ticket === ticket);
+    if (!ord) return;
+    
+    const pipSize = getPipSize(ord.symbol, ord.price_open);
+    const newPrice = ord.price_open + (delta * pipSize);
+    
+    // We don't close the panel here to allow successive adjustments (+10, +1, etc.)
+    await modifyOrderPrice(ticket, newPrice, ord.account_type);
+}
+
+async function modifyOrderPrice(ticket, newPrice, accountType) {
+    showToast(`Modification de l'ordre #${ticket}...`, "warning");
+    try {
+        const response = await fetch('/api/order/modify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticket: ticket,
+                price: newPrice,
+                account_type: accountType
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.detail || "Erreur de modification");
+        }
+        showToast(`Ordre #${ticket} modifié à ${newPrice.toFixed(1)}`, "success");
+        fetchPositions();
+    } catch (err) {
+        showToast(err.message, "danger");
+    }
 }
 
 async function modifySL(ticket, newSLPrice) {

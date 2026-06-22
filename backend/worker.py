@@ -314,6 +314,49 @@ async def cancel_order(req: CancelOrderRequest):
         "retcode": res.retcode
     }
 
+class ModifyOrderRequest(BaseModel):
+    ticket: int
+    price: float
+    sl: float = 0.0
+    tp: float = 0.0
+
+@app.post("/order/modify")
+async def modify_order(req: ModifyOrderRequest):
+    global initialized
+    if not initialized:
+        raise HTTPException(status_code=503, detail="MT5 terminal not connected")
+        
+    orders = mt5.orders_get(ticket=req.ticket)
+    if orders is None or len(orders) == 0:
+        raise HTTPException(status_code=404, detail=f"Pending order ticket {req.ticket} not found")
+        
+    ord_info = orders[0]
+    
+    trade_req = {
+        "action": mt5.TRADE_ACTION_MODIFY,
+        "order": int(req.ticket),
+        "price": float(req.price),
+        "sl": float(req.sl) if req.sl is not None else float(ord_info.sl),
+        "tp": float(req.tp) if req.tp is not None else float(ord_info.tp)
+    }
+    
+    res = mt5.order_send(trade_req)
+    if res is None:
+        raise HTTPException(status_code=500, detail=f"Failed to modify order. Error: {mt5.last_error()}")
+        
+    if res.retcode != mt5.TRADE_RETCODE_DONE:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Modify order request rejected: {res.comment} (Code: {res.retcode})"
+        )
+        
+    return {
+        "success": True,
+        "ticket": res.order,
+        "comment": res.comment,
+        "retcode": res.retcode
+    }
+
 def get_pip_size(symbol):
     """Determine pip/point size for distance computations (1.0 for indices, 0.0001 forex, 0.01 JPY)."""
     info = mt5.symbol_info(symbol)

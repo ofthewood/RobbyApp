@@ -669,6 +669,40 @@ async def cancel_order(req: CancelOrderRequest):
     except httpx.RequestError as e:
         raise HTTPException(status_code=503, detail=f"Failed to communicate with MT5 worker: {e}")
 
+class ModifyOrderRequest(BaseModel):
+    ticket: int
+    price: float
+    sl: float = 0.0
+    tp: float = 0.0
+    account_type: str
+
+@app.post("/api/order/modify")
+async def modify_order(req: ModifyOrderRequest):
+    """Route order modify to correct worker."""
+    config = load_config()
+    target_port = 8011 if (is_single_mode(config) or req.account_type.lower() == "long") else 8012
+    worker_url = f"http://127.0.0.1:{target_port}/order/modify"
+    
+    payload = {
+        "ticket": req.ticket,
+        "price": req.price,
+        "sl": req.sl,
+        "tp": req.tp
+    }
+    
+    try:
+        res = await http_client.post(worker_url, json=payload, timeout=5.0)
+        if res.status_code != 200:
+            error_detail = "Unknown worker error"
+            try:
+                error_detail = res.json().get("detail", error_detail)
+            except:
+                pass
+            raise HTTPException(status_code=res.status_code, detail=error_detail)
+        return res.json()
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=503, detail=f"Failed to communicate with MT5 worker: {e}")
+
 class AutoBERequest(BaseModel):
     ticket: int
     auto_be_pips: Optional[int] = None
