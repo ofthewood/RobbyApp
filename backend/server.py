@@ -1033,7 +1033,8 @@ async def get_history():
             net_profit = total_profit + total_commission + total_swap
             
             close_time = close_deals[-1]["time"]
-            close_price = close_deals[-1]["price"]
+            total_close_volume = sum(c["volume"] for c in close_deals)
+            close_price = sum(c["price"] * c["volume"] for c in close_deals) / total_close_volume if total_close_volume > 0 else close_deals[-1]["price"]
             duration = max(0, close_time - open_time)
             
             pip_size = get_pip_size(symbol)
