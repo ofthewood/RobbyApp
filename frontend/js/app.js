@@ -29,7 +29,9 @@ const state = {
     journalUnit: localStorage.getItem('journalUnit') || 'EUR',
     chartPriceLines: [],
     bidPriceLine: null,
-    askPriceLine: null
+    askPriceLine: null,
+    executionType: 'market',
+    limitPrice: null
 };
 
 // DOM Elements Cache
@@ -146,7 +148,17 @@ const elements = {
     journalEquity: document.getElementById('journal-equity'),
     journalBalance: document.getElementById('journal-balance'),
     journalFreeMargin: document.getElementById('journal-free-margin'),
-    journalUnitSelector: document.getElementById('journal-unit-selector')
+    journalUnitSelector: document.getElementById('journal-unit-selector'),
+    
+    // Limit order inputs and displays
+    limitPriceInput: document.getElementById('input-limit-price'),
+    graphLimitPriceInput: document.getElementById('graph-input-limit-price'),
+    valDisplayType: document.getElementById('val-display-type'),
+    graphValDisplayType: document.getElementById('graph-val-display-type'),
+    valDisplayPrice: document.getElementById('val-display-price'),
+    graphValDisplayPrice: document.getElementById('graph-val-display-price'),
+    paramColPrice: document.getElementById('param-col-price'),
+    graphParamColPrice: document.getElementById('graph-param-col-price')
 };
 
 // ==========================================================================
@@ -552,22 +564,31 @@ function loadTradingViewWidget() {
         });
         
         // Bind timeframe selector button events
-        const tfSelector = document.querySelector('.chart-timeframe-selector');
-        if (tfSelector) {
-            const tfButtons = tfSelector.querySelectorAll('.tf-btn');
+        const tfSelectors = document.querySelectorAll('.chart-timeframe-selector');
+        tfSelectors.forEach(selector => {
+            const tfButtons = selector.querySelectorAll('.tf-btn');
             tfButtons.forEach(btn => {
                 // Remove existing listeners by cloning and replacing
                 const newBtn = btn.cloneNode(true);
                 btn.parentNode.replaceChild(newBtn, btn);
                 
                 newBtn.addEventListener('click', () => {
-                    tfSelector.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
-                    newBtn.classList.add('active');
-                    currentResolution = newBtn.getAttribute('data-tf');
+                    const tfVal = newBtn.getAttribute('data-tf');
+                    currentResolution = tfVal;
+                    
+                    // Sync active class across all timeframe selectors
+                    document.querySelectorAll('.chart-timeframe-selector .tf-btn').forEach(b => {
+                        if (b.getAttribute('data-tf') === tfVal) {
+                            b.classList.add('active');
+                        } else {
+                            b.classList.remove('active');
+                        }
+                    });
+                    
                     loadChartData(symbol, currentResolution, true); // shouldFit = true on timeframe click
                 });
             });
-        }
+        });
         
         // Initial data load
         loadChartData(symbol, currentResolution, true); // shouldFit = true on init
@@ -641,9 +662,9 @@ async function loadChartData(symbol, resolution, shouldFit = false) {
         
         // Fit content on screen only if requested (preserves user zoom/pan)
         if (shouldFit) {
-            if (bars.length > 20) {
+            if (bars.length > 50) {
                 timeScale.setVisibleLogicalRange({
-                    from: bars.length - 20,
+                    from: bars.length - 50,
                     to: bars.length + 1
                 });
             } else {
@@ -1519,7 +1540,7 @@ function updateFullPositionsDOMValues(positions) {
 function renderQuickOrders(orders) {
     const prevRenderState = state.lastQuickOrdersRenderState || "";
     const currentRenderState = orders.map(o => 
-        `${o.ticket}:${o.volume}:${o.sl}:${o.tp}:${o.price_open}:${o.account_type}`
+        `${o.ticket}:${o.volume}:${o.sl}:${o.tp}:${o.price_open}:${o.account_type}:${o.auto_be_pips || 0}`
     ).sort().join('|') + `_panel:${state.activePanelTicket}:${state.activePanelType}`;
     
     if (currentRenderState !== prevRenderState) {
@@ -1539,7 +1560,7 @@ function renderQuickOrders(orders) {
 function renderFullOrdersTable(orders) {
     const prevRenderState = state.lastFullOrdersRenderState || "";
     const currentRenderState = orders.map(o => 
-        `${o.ticket}:${o.volume}:${o.sl}:${o.tp}:${o.price_open}:${o.account_type}`
+        `${o.ticket}:${o.volume}:${o.sl}:${o.tp}:${o.price_open}:${o.account_type}:${o.auto_be_pips || 0}`
     ).sort().join('|') + `_panel:${state.activePanelTicket}:${state.activePanelType}`;
     
     if (currentRenderState !== prevRenderState) {
@@ -1595,7 +1616,7 @@ function generateOrdersTableHTML(orders, isQuickView) {
         let slPips = "-";
         if (ord.sl > 0) {
             const diff = (ord.sl - ord.price_open) / pipSize;
-            const signedDiff = ordTypeUpper.startsWith("BUY") ? diff : -diff;
+            const signedDiff = ordTypeUpper.includes("BUY") ? diff : -diff;
             slPips = signedDiff.toFixed(0);
         }
 
@@ -1603,24 +1624,31 @@ function generateOrdersTableHTML(orders, isQuickView) {
         let tpPips = "-";
         if (ord.tp > 0) {
             const diff = (ord.tp - ord.price_open) / pipSize;
-            const signedDiff = ordTypeUpper.startsWith("BUY") ? diff : -diff;
+            const signedDiff = ordTypeUpper.includes("BUY") ? diff : -diff;
             tpPips = signedDiff.toFixed(0);
         }
+
+        // BE threshold
+        const autobeVal = ord.auto_be_pips || 0;
+        const beLabel = autobeVal > 0 ? autobeVal : 'Off';
 
         // Distance in pips: absolute value
         const distPips = Math.abs(ord.price_current - ord.price_open) / pipSize;
         const distLabel = distPips.toFixed(0);
 
         const isCloseActive = state.activePanelTicket === ord.ticket && state.activePanelType === 'CLOSE_ORDER';
+        const isSLActive = state.activePanelTicket === ord.ticket && state.activePanelType === 'SL_ORDER';
+        const isBEActive = state.activePanelTicket === ord.ticket && state.activePanelType === 'BE_ORDER';
+        const isTPActive = state.activePanelTicket === ord.ticket && state.activePanelType === 'TP_ORDER';
 
         html += `
             <tr class="order-row" data-ticket="${ord.ticket}">
                 <td class="type-cell"><span class="type-tag ${typeClass}">${typeLetter}</span></td>
                 <td class="price-cell ${state.activePanelTicket === ord.ticket && state.activePanelType === 'MODIFY_PRICE' ? 'active-cell' : ''}" style="cursor: pointer;" onclick="toggleOrderPanel(${ord.ticket}, 'MODIFY_PRICE')">${ord.price_open.toFixed(1)}</td>
                 <td class="lot-cell">${ord.volume.toFixed(2)}</td>
-                <td class="sl-cell">${slPips}</td>
-                <td class="be-cell">-</td>
-                <td class="tp-cell">${tpPips}</td>
+                <td class="sl-cell ${isSLActive ? 'active-cell' : ''}" style="cursor: pointer;" onclick="toggleOrderPanel(${ord.ticket}, 'SL_ORDER')">${slPips}</td>
+                <td class="be-cell ${isBEActive ? 'active-cell' : ''}" style="cursor: pointer;" onclick="toggleOrderPanel(${ord.ticket}, 'BE_ORDER')">${beLabel}</td>
+                <td class="tp-cell ${isTPActive ? 'active-cell' : ''}" style="cursor: pointer;" onclick="toggleOrderPanel(${ord.ticket}, 'TP_ORDER')">${tpPips}</td>
                 <td class="pnl-cell loss-text ${isCloseActive ? 'active-cell' : ''}" style="cursor: pointer;" onclick="toggleOrderPanel(${ord.ticket}, 'CLOSE_ORDER')">${distLabel}</td>
             </tr>
         `;
@@ -1761,17 +1789,30 @@ async function placeOrder(action) {
     showToast(`Envoi de l'ordre ${action} ${lot} Lots...`, "warning");
     
     try {
+        let targetPrice = state.limitPrice;
+        if (state.executionType === 'limit') {
+            const inputVal = elements.limitPriceInput ? parseFloat(elements.limitPriceInput.value) : 0;
+            const graphInputVal = elements.graphLimitPriceInput ? parseFloat(elements.graphLimitPriceInput.value) : 0;
+            targetPrice = inputVal || graphInputVal || state.limitPrice;
+        }
+
+        const payload = {
+            action: action,
+            volume: lot,
+            sl_points: slPoints,
+            tp_points: tpPoints,
+            split: state.isSplitActive,
+            scenario: state.splitScenario
+        };
+        
+        if (state.executionType === 'limit') {
+            payload.price = targetPrice;
+        }
+
         const response = await fetch('/api/order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: action,
-                volume: lot,
-                sl_points: slPoints,
-                tp_points: tpPoints,
-                split: state.isSplitActive,
-                scenario: state.splitScenario
-            })
+            body: JSON.stringify(payload)
         });
         
         const data = await response.json();
@@ -2055,6 +2096,28 @@ function toggleOrderPanel(ticket, type) {
 }
 
 function generateOrderInlinePanelHTML(ord) {
+    const pipSize = getPipSize(ord.symbol, ord.price_open);
+    const ordTypeUpper = ord.type.toUpperCase();
+    const isBuy = ordTypeUpper.includes("BUY");
+    
+    // SL distance in pips
+    let slPips = "-";
+    if (ord.sl > 0) {
+        const diff = (ord.sl - ord.price_open) / pipSize;
+        const signedDiff = isBuy ? diff : -diff;
+        slPips = signedDiff.toFixed(0);
+    }
+    
+    // TP distance in pips
+    let tpPips = "-";
+    if (ord.tp > 0) {
+        const diff = (ord.tp - ord.price_open) / pipSize;
+        const signedDiff = isBuy ? diff : -diff;
+        tpPips = signedDiff.toFixed(0);
+    }
+    
+    const autobeVal = ord.auto_be_pips || 0;
+
     if (state.activePanelType === 'CLOSE_ORDER') {
         return `
             <div class="inline-close-grid">
@@ -2070,6 +2133,54 @@ function generateOrderInlinePanelHTML(ord) {
                 <button class="inline-btn" onclick="adjustOrderPrice(${ord.ticket}, -1)">-1</button>
                 <button class="inline-btn" onclick="adjustOrderPrice(${ord.ticket}, 1)">+1</button>
                 <button class="inline-btn" onclick="adjustOrderPrice(${ord.ticket}, 10)">+10</button>
+            </div>
+        `;
+    } else if (state.activePanelType === 'SL_ORDER') {
+        return `
+            <div class="inline-adjuster-grid">
+                <button class="inline-btn" onclick="adjustOrderSL(${ord.ticket}, -10)">-10</button>
+                <button class="inline-btn" onclick="adjustOrderSL(${ord.ticket}, -1)">-1</button>
+                <button class="inline-btn" onclick="adjustOrderSL(${ord.ticket}, 1)">+1</button>
+                <button class="inline-btn" onclick="adjustOrderSL(${ord.ticket}, 10)">+10</button>
+            </div>
+            <div class="inline-preset-grid">
+                <button class="inline-btn preset-btn ${slPips === '-' ? 'active' : ''}" onclick="applyQuickOrderSL(${ord.ticket}, 0)">off</button>
+                <button class="inline-btn preset-btn btn-slbe ${slPips === '0' ? 'active' : ''}" onclick="applyOrderSLBE(${ord.ticket})">SLBE</button>
+                <button class="inline-btn preset-btn ${slPips === '-10' ? 'active' : ''}" onclick="applyQuickOrderSL(${ord.ticket}, 10)">-10</button>
+                <button class="inline-btn preset-btn ${slPips === '-20' ? 'active' : ''}" onclick="applyQuickOrderSL(${ord.ticket}, 20)">-20</button>
+                <button class="inline-btn preset-btn ${slPips === '-40' ? 'active' : ''}" onclick="applyQuickOrderSL(${ord.ticket}, 40)">-40</button>
+            </div>
+        `;
+    } else if (state.activePanelType === 'TP_ORDER') {
+        return `
+            <div class="inline-adjuster-grid">
+                <button class="inline-btn" onclick="adjustOrderTP(${ord.ticket}, -10)">-10</button>
+                <button class="inline-btn" onclick="adjustOrderTP(${ord.ticket}, -1)">-1</button>
+                <button class="inline-btn" onclick="adjustOrderTP(${ord.ticket}, 1)">+1</button>
+                <button class="inline-btn" onclick="adjustOrderTP(${ord.ticket}, 10)">+10</button>
+            </div>
+            <div class="inline-preset-grid">
+                <button class="inline-btn preset-btn ${tpPips === '-' || tpPips === '0' ? 'active' : ''}" onclick="applyQuickOrderTP(${ord.ticket}, 0)">off</button>
+                <button class="inline-btn preset-btn ${tpPips === '1' ? 'active' : ''}" onclick="applyQuickOrderTP(${ord.ticket}, 1)">1</button>
+                <button class="inline-btn preset-btn ${tpPips === '10' ? 'active' : ''}" onclick="applyQuickOrderTP(${ord.ticket}, 10)">10</button>
+                <button class="inline-btn preset-btn ${tpPips === '20' ? 'active' : ''}" onclick="applyQuickOrderTP(${ord.ticket}, 20)">20</button>
+                <button class="inline-btn preset-btn ${tpPips === '40' ? 'active' : ''}" onclick="applyQuickOrderTP(${ord.ticket}, 40)">40</button>
+            </div>
+        `;
+    } else if (state.activePanelType === 'BE_ORDER') {
+        return `
+            <div class="inline-adjuster-grid">
+                <button class="inline-btn" onclick="adjustOrderAutoBE(${ord.ticket}, -10)">-10</button>
+                <button class="inline-btn" onclick="adjustOrderAutoBE(${ord.ticket}, -1)">-1</button>
+                <button class="inline-btn" onclick="adjustOrderAutoBE(${ord.ticket}, 1)">+1</button>
+                <button class="inline-btn" onclick="adjustOrderAutoBE(${ord.ticket}, 10)">+10</button>
+            </div>
+            <div class="inline-preset-grid be-presets">
+                <button class="inline-btn preset-btn ${autobeVal === 0 ? 'active' : ''}" onclick="applyQuickOrderAutoBE(${ord.ticket}, 0)">off</button>
+                <button class="inline-btn preset-btn ${autobeVal === 10 ? 'active' : ''}" onclick="applyQuickOrderAutoBE(${ord.ticket}, 10)">10</button>
+                <button class="inline-btn preset-btn ${autobeVal === 20 ? 'active' : ''}" onclick="applyQuickOrderAutoBE(${ord.ticket}, 20)">20</button>
+                <button class="inline-btn preset-btn ${autobeVal === 40 ? 'active' : ''}" onclick="applyQuickOrderAutoBE(${ord.ticket}, 40)">40</button>
+                <button class="inline-btn preset-btn ${autobeVal === 60 ? 'active' : ''}" onclick="applyQuickOrderAutoBE(${ord.ticket}, 60)">60</button>
             </div>
         `;
     }
@@ -2120,6 +2231,202 @@ async function modifyOrderPrice(ticket, newPrice, accountType) {
     } catch (err) {
         showToast(err.message, "danger");
     }
+}
+
+async function adjustOrderSL(ticket, delta) {
+    const ord = state.orders.find(o => o.ticket === ticket);
+    if (!ord) return;
+    
+    const pipSize = getPipSize(ord.symbol, ord.price_open);
+    const isBuy = ord.type.toUpperCase().includes("BUY");
+    
+    let currentSignedPips = -20; // Default starting point if no SL
+    if (ord.sl > 0) {
+        const diff = (ord.sl - ord.price_open) / pipSize;
+        currentSignedPips = isBuy ? diff : -diff;
+    }
+    
+    const newSignedPips = Math.round(currentSignedPips + delta);
+    
+    const targetSL = isBuy
+        ? ord.price_open + (newSignedPips * pipSize)
+        : ord.price_open - (newSignedPips * pipSize);
+        
+    await modifyOrderSL(ticket, targetSL, ord.account_type);
+}
+
+async function applyQuickOrderSL(ticket, pips) {
+    const ord = state.orders.find(o => o.ticket === ticket);
+    if (!ord) return;
+    
+    let targetSL = 0.0;
+    if (pips > 0) {
+        const pipSize = getPipSize(ord.symbol, ord.price_open);
+        const isBuy = ord.type.toUpperCase().includes("BUY");
+        targetSL = isBuy
+            ? ord.price_open - (pips * pipSize)
+            : ord.price_open + (pips * pipSize);
+    }
+    
+    // Auto-close on preset selection
+    state.activePanelTicket = null;
+    state.activePanelType = null;
+    
+    await modifyOrderSL(ticket, targetSL, ord.account_type);
+}
+
+async function applyOrderSLBE(ticket) {
+    const ord = state.orders.find(o => o.ticket === ticket);
+    if (!ord) return;
+    
+    // SLBE means SL = entry price
+    const targetSL = ord.price_open;
+    
+    // Auto-close on preset selection
+    state.activePanelTicket = null;
+    state.activePanelType = null;
+    
+    await modifyOrderSL(ticket, targetSL, ord.account_type);
+}
+
+async function modifyOrderSL(ticket, targetSL, accountType) {
+    const ord = state.orders.find(o => o.ticket === ticket);
+    if (!ord) return;
+    
+    showToast(`Modification du SL de l'ordre #${ticket}...`, "warning");
+    try {
+        const response = await fetch('/api/order/modify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticket: ticket,
+                price: ord.price_open,
+                sl: parseFloat(targetSL),
+                tp: ord.tp,
+                account_type: accountType
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.detail || "Erreur de modification");
+        }
+        showToast(`SL de l'ordre #${ticket} modifié`, "success");
+        fetchPositions();
+    } catch (err) {
+        showToast(err.message, "danger");
+    }
+}
+
+async function adjustOrderTP(ticket, delta) {
+    const ord = state.orders.find(o => o.ticket === ticket);
+    if (!ord) return;
+    
+    const pipSize = getPipSize(ord.symbol, ord.price_open);
+    const isBuy = ord.type.toUpperCase().includes("BUY");
+    
+    let currentSignedPips = 20; // Default starting point if no TP
+    if (ord.tp > 0) {
+        const diff = (ord.tp - ord.price_open) / pipSize;
+        currentSignedPips = isBuy ? diff : -diff;
+    }
+    
+    const newSignedPips = Math.round(currentSignedPips + delta);
+    
+    const targetTP = isBuy
+        ? ord.price_open + (newSignedPips * pipSize)
+        : ord.price_open - (newSignedPips * pipSize);
+        
+    await modifyOrderTP(ticket, targetTP, ord.account_type);
+}
+
+async function applyQuickOrderTP(ticket, pips) {
+    const ord = state.orders.find(o => o.ticket === ticket);
+    if (!ord) return;
+    
+    let targetTP = 0.0;
+    if (pips > 0) {
+        const pipSize = getPipSize(ord.symbol, ord.price_open);
+        const isBuy = ord.type.toUpperCase().includes("BUY");
+        targetTP = isBuy
+            ? ord.price_open + (pips * pipSize)
+            : ord.price_open - (pips * pipSize);
+    }
+    
+    // Auto-close on preset selection
+    state.activePanelTicket = null;
+    state.activePanelType = null;
+    
+    await modifyOrderTP(ticket, targetTP, ord.account_type);
+}
+
+async function modifyOrderTP(ticket, targetTP, accountType) {
+    const ord = state.orders.find(o => o.ticket === ticket);
+    if (!ord) return;
+    
+    showToast(`Modification du TP de l'ordre #${ticket}...`, "warning");
+    try {
+        const response = await fetch('/api/order/modify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticket: ticket,
+                price: ord.price_open,
+                sl: ord.sl,
+                tp: parseFloat(targetTP),
+                account_type: accountType
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.detail || "Erreur de modification");
+        }
+        showToast(`TP de l'ordre #${ticket} modifié`, "success");
+        fetchPositions();
+    } catch (err) {
+        showToast(err.message, "danger");
+    }
+}
+
+async function modifyOrderAutoBE(ticket, pips) {
+    const ord = state.orders.find(o => o.ticket === ticket);
+    if (!ord) return;
+    
+    showToast("Mise à jour AutoBE de l'ordre...", "warning");
+    try {
+        const response = await fetch('/api/position/autobe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticket: ticket,
+                auto_be_pips: pips === null ? null : parseInt(pips)
+            })
+        });
+        
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "Erreur de modification");
+        
+        showToast(pips === 0 ? "AutoBE désactivé pour cet ordre" : (pips === null ? "AutoBE réinitialisé" : `AutoBE de l'ordre mis à jour à ${pips} pips`), "success");
+        
+        fetchPositions();
+    } catch (err) {
+        showToast(err.message, "danger");
+    }
+}
+
+function adjustOrderAutoBE(ticket, delta) {
+    const ord = state.orders.find(o => o.ticket === ticket);
+    if (!ord) return;
+    
+    const currentVal = ord.auto_be_pips || 0;
+    const newVal = Math.max(0, Math.round(currentVal + delta));
+    
+    modifyOrderAutoBE(ticket, newVal);
+}
+
+function applyQuickOrderAutoBE(ticket, pips) {
+    state.activePanelTicket = null;
+    state.activePanelType = null;
+    modifyOrderAutoBE(ticket, pips);
 }
 
 async function modifySL(ticket, newSLPrice) {
@@ -2566,7 +2873,8 @@ async function handleConfigSubmit(e) {
 
 // Toggle dynamic panels in scalp parameters bar
 function toggleScalpParamPanel(type) {
-    const panels = ['lot', 'be', 'sl', 'tp'];
+    if (type === 'price' && state.executionType === 'market') return;
+    const panels = ['type', 'price', 'lot', 'be', 'sl', 'tp'];
     const activePanel = document.getElementById(`panel-scalp-${type}`);
     const activeCol = document.getElementById(`param-col-${type}`);
     
@@ -2589,7 +2897,8 @@ function toggleScalpParamPanel(type) {
 
 // Toggle dynamic panels in graph parameters bar
 function toggleGraphParamPanel(type) {
-    const panels = ['lot', 'be', 'sl', 'tp'];
+    if (type === 'price' && state.executionType === 'market') return;
+    const panels = ['type', 'price', 'lot', 'be', 'sl', 'tp'];
     const activePanel = document.getElementById(`panel-graph-${type}`);
     const activeCol = document.getElementById(`graph-param-col-${type}`);
     
@@ -2650,6 +2959,52 @@ function syncScalpParamDisplays() {
         const val = parseFloat(tpInput.value) || 0;
         displayTp.innerText = val > 0 ? val.toFixed(0) : 'None';
         if (graphDisplayTp) graphDisplayTp.innerText = val > 0 ? val.toFixed(0) : 'None';
+    }
+    
+    // Sync Execution Type
+    const typeVal = state.executionType || 'market';
+    const typeLabel = typeVal.charAt(0).toUpperCase() + typeVal.slice(1);
+    if (elements.valDisplayType) elements.valDisplayType.innerText = typeLabel;
+    if (elements.graphValDisplayType) elements.graphValDisplayType.innerText = typeLabel;
+    
+    // Sync active classes on Type preset buttons
+    document.querySelectorAll('#type-presets .preset-btn').forEach(btn => {
+        if (btn.getAttribute('data-val') === typeVal) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    document.querySelectorAll('#graph-type-presets .preset-btn').forEach(btn => {
+        if (btn.getAttribute('data-val') === typeVal) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // Sync Price column
+    if (typeVal === 'market') {
+        if (elements.valDisplayPrice) elements.valDisplayPrice.innerText = 'Mkt';
+        if (elements.graphValDisplayPrice) elements.graphValDisplayPrice.innerText = 'Mkt';
+        if (elements.paramColPrice) elements.paramColPrice.classList.remove('clickable-param');
+        if (elements.graphParamColPrice) elements.graphParamColPrice.classList.remove('clickable-param');
+    } else {
+        const priceStr = state.limitPrice ? state.limitPrice.toFixed(1) : '----.-';
+        if (elements.valDisplayPrice) elements.valDisplayPrice.innerText = priceStr;
+        if (elements.graphValDisplayPrice) elements.graphValDisplayPrice.innerText = priceStr;
+        if (elements.paramColPrice) elements.paramColPrice.classList.add('clickable-param');
+        if (elements.graphParamColPrice) elements.graphParamColPrice.classList.add('clickable-param');
+        
+        // Update input values
+        if (state.limitPrice) {
+            if (elements.limitPriceInput && document.activeElement !== elements.limitPriceInput) {
+                elements.limitPriceInput.value = state.limitPrice;
+            }
+            if (elements.graphLimitPriceInput && document.activeElement !== elements.graphLimitPriceInput) {
+                elements.graphLimitPriceInput.value = state.limitPrice;
+            }
+        }
     }
 }
 
@@ -2771,15 +3126,37 @@ function initChartResizer() {
     resizer.addEventListener('touchend', onTouchEnd);
 }
 
+function setExecutionType(val) {
+    state.executionType = val;
+    if (val === 'limit') {
+        if (!state.limitPrice || state.limitPrice === 0) {
+            state.limitPrice = state.lastAsk || 0;
+        }
+    }
+    syncScalpParamDisplays();
+}
+
+function adjustLimitPrice(deltaPoints) {
+    const symbol = state.config.symbol;
+    const currentPrice = state.limitPrice || state.lastAsk || 100;
+    const pipSize = getPipSize(symbol, currentPrice);
+    
+    // adjust price
+    state.limitPrice = (state.limitPrice || state.lastAsk || 0) + (deltaPoints * pipSize);
+    
+    syncScalpParamDisplays();
+}
+
 // ==========================================================================
 // APP INITIALIZATION
 // ==========================================================================
 function init() {
     initNavigation();
     initChartResizer();
+    initCollapsibleSections();
     
     // Sync parameter bar values on change/input for Scalp tab
-    ['input-lot', 'input-auto-be', 'input-sl-points', 'input-tp-points'].forEach(id => {
+    ['input-lot', 'input-auto-be', 'input-sl-points', 'input-tp-points', 'input-limit-price'].forEach(id => {
         const input = document.getElementById(id);
         if (input) {
             input.addEventListener('input', syncScalpParamDisplays);
@@ -2788,13 +3165,65 @@ function init() {
     });
     
     // Sync parameter bar values on change/input for Graph tab
-    ['graph-input-lot', 'graph-input-auto-be', 'graph-input-sl-points', 'graph-input-tp-points'].forEach(id => {
+    ['graph-input-lot', 'graph-input-auto-be', 'graph-input-sl-points', 'graph-input-tp-points', 'graph-input-limit-price'].forEach(id => {
         const input = document.getElementById(id);
         if (input) {
             input.addEventListener('input', syncScalpParamDisplays);
             input.addEventListener('change', syncScalpParamDisplays);
         }
     });
+
+    // Wire up type selector presets
+    document.querySelectorAll('#type-presets .preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            setExecutionType(btn.getAttribute('data-val'));
+            toggleScalpParamPanel(null);
+        });
+    });
+    document.querySelectorAll('#graph-type-presets .preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            setExecutionType(btn.getAttribute('data-val'));
+            toggleGraphParamPanel(null);
+        });
+    });
+    
+    // Wire up price adjustment buttons
+    document.querySelectorAll('.price-adjust-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const change = parseFloat(btn.getAttribute('data-change'));
+            adjustLimitPrice(change);
+        });
+    });
+    document.querySelectorAll('.graph-price-adjust-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const change = parseFloat(btn.getAttribute('data-change'));
+            adjustLimitPrice(change);
+        });
+    });
+    
+    // Wire up limit price inputs bi-directionally
+    if (elements.limitPriceInput) {
+        const updatePrice = (e) => {
+            state.limitPrice = parseFloat(e.target.value) || 0;
+            if (elements.graphLimitPriceInput && elements.graphLimitPriceInput.value !== e.target.value) {
+                elements.graphLimitPriceInput.value = e.target.value;
+            }
+            syncScalpParamDisplays();
+        };
+        elements.limitPriceInput.addEventListener('input', updatePrice);
+        elements.limitPriceInput.addEventListener('change', updatePrice);
+    }
+    if (elements.graphLimitPriceInput) {
+        const updatePrice = (e) => {
+            state.limitPrice = parseFloat(e.target.value) || 0;
+            if (elements.limitPriceInput && elements.limitPriceInput.value !== e.target.value) {
+                elements.limitPriceInput.value = e.target.value;
+            }
+            syncScalpParamDisplays();
+        };
+        elements.graphLimitPriceInput.addEventListener('input', updatePrice);
+        elements.graphLimitPriceInput.addEventListener('change', updatePrice);
+    }
     
     // Setup Presets for Scalp tab
     setupPresetSelector('lot-presets', elements.lotInput);
@@ -2992,3 +3421,35 @@ function init() {
 
 // Start app on DOM Loaded
 document.addEventListener('DOMContentLoaded', init);
+
+// Collapsible Sections support
+function initCollapsibleSections() {
+    // Restore collapsed states
+    document.querySelectorAll('.quick-positions-section, .positions-full-card').forEach(section => {
+        if (section.id) {
+            const isCollapsed = localStorage.getItem(`collapsed_${section.id}`) === 'true';
+            if (isCollapsed) {
+                section.classList.add('collapsed');
+            }
+        }
+    });
+
+    // Bind click events on headers dynamically
+    document.querySelectorAll('.section-header').forEach(header => {
+        header.addEventListener('click', (event) => {
+            if (event.target.closest('button') || event.target.closest('input') || event.target.closest('a')) {
+                return; // Don't toggle if clicking buttons, inputs, links, etc.
+            }
+            const section = header.closest('.quick-positions-section, .positions-full-card');
+            if (!section) return;
+            section.classList.toggle('collapsed');
+            
+            if (section.id) {
+                localStorage.setItem(`collapsed_${section.id}`, section.classList.contains('collapsed') ? 'true' : 'false');
+            }
+            
+            // Trigger window resize so chart canvas updates if needed
+            window.dispatchEvent(new Event('resize'));
+        });
+    });
+}

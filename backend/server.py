@@ -433,6 +433,23 @@ async def get_positions():
         except Exception as e:
             print(f"Error fetching positions from Short worker: {e}")
         
+    # Fetch orders to avoid pruning pending order overrides
+    orders = []
+    try:
+        res = await http_client.get(f"http://127.0.0.1:8011/orders?symbol={symbol}", timeout=1.0)
+        if res.status_code == 200:
+            orders.extend(res.json())
+    except Exception as e:
+        print(f"Error fetching orders from Long worker for AutoBE check: {e}")
+        
+    if not is_single_mode(config):
+        try:
+            res = await http_client.get(f"http://127.0.0.1:8012/orders?symbol={symbol}", timeout=1.0)
+            if res.status_code == 200:
+                orders.extend(res.json())
+        except Exception as e:
+            print(f"Error fetching orders from Short worker for AutoBE check: {e}")
+
     # Enrich positions with custom AutoBE thresholds and perform automatic pruning
     overrides = load_autobe_overrides()
     global_auto_be = config.get("auto_be_pips", 0)
@@ -446,8 +463,10 @@ async def get_positions():
         else:
             pos["auto_be_pips"] = global_auto_be
             
-    # Clean up stale overrides
-    stale_keys = [t for t in overrides if t not in active_tickets]
+    active_order_tickets = set(str(ord["ticket"]) for ord in orders)
+    
+    # Clean up stale overrides (must not be in active positions AND not in active pending orders)
+    stale_keys = [t for t in overrides if t not in active_tickets and t not in active_order_tickets]
     if stale_keys:
         for t in stale_keys:
             del overrides[t]
@@ -478,6 +497,16 @@ async def get_api_orders():
                 orders.extend(res.json())
         except Exception as e:
             print(f"Error fetching orders from Short worker: {e}")
+            
+    # Enrich orders with custom AutoBE thresholds
+    overrides = load_autobe_overrides()
+    global_auto_be = config.get("auto_be_pips", 0)
+    for ord in orders:
+        ticket_str = str(ord["ticket"])
+        if ticket_str in overrides:
+            ord["auto_be_pips"] = overrides[ticket_str]
+        else:
+            ord["auto_be_pips"] = global_auto_be
         
     return orders
 
@@ -488,6 +517,7 @@ class OrderRequest(BaseModel):
     tp_points: float = 0.0
     split: Optional[bool] = False
     scenario: Optional[int] = 0
+    price: Optional[float] = None
 
 @app.post("/api/order")
 async def place_order(req: OrderRequest):
@@ -546,6 +576,8 @@ async def place_order(req: OrderRequest):
                 "sl_points": req.sl_points,
                 "tp_points": tp_list[i]
             }
+            if req.price is not None:
+                payload["price"] = req.price
             tasks.append(http_client.post(worker_url, json=payload, timeout=5.0))
             
         responses = await asyncio.gather(*tasks, return_exceptions=True)
@@ -594,6 +626,8 @@ async def place_order(req: OrderRequest):
         "sl_points": req.sl_points,
         "tp_points": req.tp_points
     }
+    if req.price is not None:
+        payload["price"] = req.price
     
     try:
         res = await http_client.post(worker_url, json=payload, timeout=5.0)
@@ -671,9 +705,9 @@ async def cancel_order(req: CancelOrderRequest):
 
 class ModifyOrderRequest(BaseModel):
     ticket: int
-    price: float
-    sl: float = 0.0
-    tp: float = 0.0
+    price: Optional[float] = None
+    sl: Optional[float] = None
+    tp: Optional[float] = None
     account_type: str
 
 @app.post("/api/order/modify")
@@ -685,11 +719,14 @@ async def modify_order(req: ModifyOrderRequest):
     
     payload = {
         "ticket": req.ticket,
-        "price": req.price,
-        "sl": req.sl,
-        "tp": req.tp
     }
-    
+    if req.price is not None:
+        payload["price"] = req.price
+    if req.sl is not None:
+        payload["sl"] = req.sl
+    if req.tp is not None:
+        payload["tp"] = req.tp
+        
     try:
         res = await http_client.post(worker_url, json=payload, timeout=5.0)
         if res.status_code != 200:

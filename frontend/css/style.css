@@ -437,12 +437,37 @@ input, button, select, textarea {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.15s ease;
+}
+
+.section-header:hover {
+    opacity: 0.8;
 }
 
 .section-header h3 {
     font-family: var(--font-family-heading);
     font-size: 14px;
     font-weight: 700;
+    display: flex;
+    align-items: center;
+}
+
+.toggle-arrow {
+    margin-left: 8px;
+    font-size: 11px;
+    transition: transform 0.2s ease;
+    color: var(--text-muted);
+}
+
+.collapsed .toggle-arrow {
+    transform: rotate(-90deg);
+}
+
+.collapsed .quick-positions-list,
+.collapsed .positions-cards-list {
+    display: none !important;
 }
 
 .total-pnl-badge {
@@ -1369,9 +1394,10 @@ input, button, select, textarea {
 
 .param-bar-value {
     font-family: var(--font-family-heading);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     color: var(--text-primary);
+    white-space: nowrap;
 }
 
 /* Dynamic dropdown panels below status row */

@@ -5,6 +5,7 @@ import asyncio
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
 import MetaTrader5 as mt5
 
 # Create FastAPI app
@@ -316,9 +317,9 @@ async def cancel_order(req: CancelOrderRequest):
 
 class ModifyOrderRequest(BaseModel):
     ticket: int
-    price: float
-    sl: float = 0.0
-    tp: float = 0.0
+    price: Optional[float] = None
+    sl: Optional[float] = None
+    tp: Optional[float] = None
 
 @app.post("/order/modify")
 async def modify_order(req: ModifyOrderRequest):
@@ -335,7 +336,7 @@ async def modify_order(req: ModifyOrderRequest):
     trade_req = {
         "action": mt5.TRADE_ACTION_MODIFY,
         "order": int(req.ticket),
-        "price": float(req.price),
+        "price": float(req.price) if req.price is not None else float(ord_info.price_open),
         "sl": float(req.sl) if req.sl is not None else float(ord_info.sl),
         "tp": float(req.tp) if req.tp is not None else float(ord_info.tp)
     }
@@ -377,6 +378,7 @@ class OrderRequest(BaseModel):
     volume: float
     sl_points: float = 0.0
     tp_points: float = 0.0
+    price: Optional[float] = None
 
 @app.post("/order")
 async def place_order(req: OrderRequest):
@@ -391,14 +393,26 @@ async def place_order(req: OrderRequest):
     if tick is None:
         raise HTTPException(status_code=400, detail=f"Cannot fetch current tick for {req.symbol}")
         
-    if req.action.upper() == "BUY":
-        order_type = mt5.ORDER_TYPE_BUY
-        price = tick.ask
-    elif req.action.upper() == "SELL":
-        order_type = mt5.ORDER_TYPE_SELL
-        price = tick.bid
+    is_pending = req.price is not None and req.price > 0
+    
+    if is_pending:
+        price = float(req.price)
+        if req.action.upper() == "BUY":
+            order_type = mt5.ORDER_TYPE_BUY_LIMIT if price < tick.ask else mt5.ORDER_TYPE_BUY_STOP
+        elif req.action.upper() == "SELL":
+            order_type = mt5.ORDER_TYPE_SELL_LIMIT if price > tick.bid else mt5.ORDER_TYPE_SELL_STOP
+        else:
+            raise HTTPException(status_code=400, detail="Invalid action. Must be BUY or SELL")
     else:
-        raise HTTPException(status_code=400, detail="Invalid action. Must be BUY or SELL")
+        if req.action.upper() == "BUY":
+            order_type = mt5.ORDER_TYPE_BUY
+            price = tick.ask
+        elif req.action.upper() == "SELL":
+            order_type = mt5.ORDER_TYPE_SELL
+            price = tick.bid
+        else:
+            raise HTTPException(status_code=400, detail="Invalid action. Must be BUY or SELL")
+            
     pip_size = get_pip_size(req.symbol)
     
     # Calculate SL and TP
@@ -422,7 +436,7 @@ async def place_order(req: OrderRequest):
 
     # Prepare request
     trade_req = {
-        "action": mt5.TRADE_ACTION_DEAL,
+        "action": mt5.TRADE_ACTION_PENDING if is_pending else mt5.TRADE_ACTION_DEAL,
         "symbol": req.symbol,
         "volume": req.volume,
         "type": order_type,
@@ -436,8 +450,13 @@ async def place_order(req: OrderRequest):
         "type_time": mt5.ORDER_TIME_GTC
     }
     
+    print(f"[{ACCOUNT_TYPE.upper()}] Order Request: {req}")
+    print(f"[{ACCOUNT_TYPE.upper()}] Preparing trade_req: {trade_req}")
+    
     # Send order
     res = mt5.order_send(trade_req)
+    print(f"[{ACCOUNT_TYPE.upper()}] Order result: {res._asdict() if res else None}")
+    
     if res is None:
         raise HTTPException(status_code=500, detail=f"Failed to submit order. mt5.order_send returned None. Error: {mt5.last_error()}")
         
