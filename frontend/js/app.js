@@ -3602,7 +3602,9 @@ function init() {
     if (btnZoomIn) {
         btnZoomIn.addEventListener('click', () => {
             if (analysisChartInstance) {
-                analysisChartInstance.timeScale().zoomIn();
+                const ts = analysisChartInstance.timeScale();
+                const currentSpacing = ts.options().barSpacing || 6;
+                ts.applyOptions({ barSpacing: Math.min(100, currentSpacing * 1.3) });
             }
         });
     }
@@ -3610,7 +3612,9 @@ function init() {
     if (btnZoomOut) {
         btnZoomOut.addEventListener('click', () => {
             if (analysisChartInstance) {
-                analysisChartInstance.timeScale().zoomOut();
+                const ts = analysisChartInstance.timeScale();
+                const currentSpacing = ts.options().barSpacing || 6;
+                ts.applyOptions({ barSpacing: Math.max(0.5, currentSpacing / 1.3) });
             }
         });
     }
