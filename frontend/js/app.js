@@ -700,10 +700,11 @@ function initAnalysisChart() {
     const container = document.getElementById('analysis_chart');
     if (!container || analysisChartInstance) return;
     
-    // Only initialize if container is visible and has dimension (desktop viewports)
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-    if (w === 0 || h === 0) return;
+    // Only initialize on desktop viewports (width >= 1024px)
+    if (window.innerWidth < 1024) return;
+    
+    const w = container.clientWidth || 600;
+    const h = container.clientHeight || 400;
     
     console.log(`Initializing trade analysis chart: ${w}x${h}`);
     
@@ -785,6 +786,16 @@ function initAnalysisChart() {
 async function loadAnalysisChartData(selectedDate) {
     if (!analysisChartInstance) initAnalysisChart();
     if (!analysisChartInstance) return;
+    
+    // Auto-resize analysis chart to container size if container size has become available
+    const container = document.getElementById('analysis_chart');
+    if (container) {
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        if (w > 0 && h > 0) {
+            analysisChartInstance.resize(w, h);
+        }
+    }
     
     if (!state.lastHistoryData || !state.lastHistoryData.trades) return;
     const allTrades = state.lastHistoryData.trades;
