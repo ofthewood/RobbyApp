@@ -797,6 +797,18 @@ async function loadAnalysisChartData(selectedDate) {
         }
     }
     
+    // DEBUG: Inspect series object properties
+    if (analysisCandlestickSeries) {
+        const keys = Object.keys(analysisCandlestickSeries);
+        const proto = Object.getPrototypeOf(analysisCandlestickSeries);
+        const protoKeys = proto ? Object.getOwnPropertyNames(proto) : [];
+        const hasSetMarkers = typeof analysisCandlestickSeries.setMarkers === 'function';
+        console.log("Debug series:", analysisCandlestickSeries, "keys:", keys, "protoKeys:", protoKeys, "hasSetMarkers:", hasSetMarkers);
+        if (!hasSetMarkers) {
+            showToast("Debug Series: setMarkers missing. Proto methods: " + protoKeys.slice(0, 8).join(', '), "warning");
+        }
+    }
+    
     if (!state.lastHistoryData || !state.lastHistoryData.trades) return;
     const allTrades = state.lastHistoryData.trades;
     
@@ -891,7 +903,11 @@ async function loadAnalysisChartData(selectedDate) {
         
         // Sort chronologically
         markers.sort((a, b) => a.time - b.time);
-        analysisCandlestickSeries.setMarkers(markers);
+        if (typeof analysisCandlestickSeries.setMarkers === 'function') {
+            analysisCandlestickSeries.setMarkers(markers);
+        } else {
+            console.warn("setMarkers is not available on analysisCandlestickSeries");
+        }
         
         // Plot Cumulative PnL (Equity) on the separate left scale
         const pnlPoints = [];
