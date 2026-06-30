@@ -3133,7 +3133,7 @@ async function saveAutoBE(value) {
         if (response.ok) {
             showToast(`Auto BE : ${value > 0 ? value + ' pips' : 'désactivé'}`, "success");
             // Sync UI
-            elements.autoBeInput.value = value;
+            if (elements.autoBeInput) elements.autoBeInput.value = value;
             elements.cfgAutoBe.value = value;
             syncPresets('auto-be-presets', value);
             syncScalpParamDisplays();
@@ -3685,10 +3685,12 @@ function init() {
             saveAutoBE(val);
         });
     });
-    elements.autoBeInput.addEventListener('change', () => {
-        const val = parseInt(elements.autoBeInput.value) || 0;
-        saveAutoBE(val);
-    });
+    if (elements.autoBeInput) {
+        elements.autoBeInput.addEventListener('change', () => {
+            const val = parseInt(elements.autoBeInput.value) || 0;
+            saveAutoBE(val);
+        });
+    }
     
     // Bind immediate Auto BE updates from presets & custom inputs (Graph)
     const graphAutoBeBtns = document.querySelectorAll('#graph-auto-be-presets .preset-btn');
