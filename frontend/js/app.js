@@ -800,20 +800,27 @@ async function loadAnalysisChartData(selectedDate) {
     if (!state.lastHistoryData || !state.lastHistoryData.trades) return;
     const allTrades = state.lastHistoryData.trades;
     
+    // Format timestamp to YYYY-MM-DD in UTC to align with the backend grouping
     const getLocalDateStr = (timestamp) => {
         const date = new Date(timestamp * 1000);
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
+        const y = date.getUTCFullYear();
+        const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(date.getUTCDate()).padStart(2, '0');
         return `${y}-${m}-${d}`;
     };
     
     // Filter trades for this date
     const dayTrades = allTrades.filter(t => getLocalDateStr(t.close_time) === selectedDate);
     
-    // Determine time range bounds (standard 8am to 6pm, or adapted to trades)
-    let minOpenTime = Math.floor(new Date(selectedDate + "T08:00:00").getTime() / 1000);
-    let maxCloseTime = Math.floor(new Date(selectedDate + "T18:00:00").getTime() / 1000);
+    // Parse selectedDate safely (cross-browser compatible)
+    const parts = selectedDate.split('-');
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1; // 0-indexed
+    const day = parseInt(parts[2]);
+    
+    // Determine time range bounds (standard 8am to 6pm UTC, or adapted to trades)
+    let minOpenTime = Math.floor(Date.UTC(year, month, day, 8, 0, 0) / 1000);
+    let maxCloseTime = Math.floor(Date.UTC(year, month, day, 18, 0, 0) / 1000);
     
     if (dayTrades.length > 0) {
         const openTimes = dayTrades.map(t => t.open_time);
