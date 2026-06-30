@@ -3609,6 +3609,32 @@ function init() {
             }
         });
     }
+
+    // Zoom In/Out & Reset for Analysis Chart
+    const btnZoomIn = document.getElementById('btn-zoom-in-analysis');
+    if (btnZoomIn) {
+        btnZoomIn.addEventListener('click', () => {
+            if (analysisChartInstance) {
+                analysisChartInstance.timeScale().zoomIn();
+            }
+        });
+    }
+    const btnZoomOut = document.getElementById('btn-zoom-out-analysis');
+    if (btnZoomOut) {
+        btnZoomOut.addEventListener('click', () => {
+            if (analysisChartInstance) {
+                analysisChartInstance.timeScale().zoomOut();
+            }
+        });
+    }
+    const btnResetZoom = document.getElementById('btn-reset-analysis');
+    if (btnResetZoom) {
+        btnResetZoom.addEventListener('click', () => {
+            if (analysisChartInstance) {
+                analysisChartInstance.timeScale().fitContent();
+            }
+        });
+    }
     
     // Sync parameter bar values on change/input for Scalp tab
     ['input-lot', 'input-auto-be', 'input-sl-points', 'input-tp-points', 'input-limit-price'].forEach(id => {
