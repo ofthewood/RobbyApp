@@ -467,6 +467,13 @@ function initNavigation() {
             elements.tabContents.forEach(tab => tab.classList.remove('active'));
             document.getElementById(targetTabId).classList.add('active');
             
+            // Toggle PC Fullscreen layout for Graph and Journal tabs
+            if (targetTabId === 'tab-journal' || targetTabId === 'tab-graph') {
+                document.body.classList.add('pc-fullscreen-active');
+            } else {
+                document.body.classList.remove('pc-fullscreen-active');
+            }
+            
             if (targetTabId === 'tab-journal') {
                 fetchHistoryData();
                 setTimeout(() => {
@@ -491,11 +498,19 @@ function initNavigation() {
         });
     });
 
-    // Check on page load if tab-graph is active by default to disable viewport scrolling
+    // Check on page load if active tab is fullscreen
     const activeTab = document.querySelector('.tab-content.active');
-    if (activeTab && activeTab.id === 'tab-graph') {
+    if (activeTab) {
+        if (activeTab.id === 'tab-journal' || activeTab.id === 'tab-graph') {
+            document.body.classList.add('pc-fullscreen-active');
+        } else {
+            document.body.classList.remove('pc-fullscreen-active');
+        }
+        
         const viewport = document.querySelector('.app-main-viewport');
-        if (viewport) viewport.classList.add('viewport-no-scroll');
+        if (activeTab.id === 'tab-graph' && viewport) {
+            viewport.classList.add('viewport-no-scroll');
+        }
     }
 }
 

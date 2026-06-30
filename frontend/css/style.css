@@ -1510,13 +1510,13 @@ input, button, select, textarea {
 }
 
 @media (min-width: 1024px) {
-    /* PC Full Screen Desktop Experience */
-    body {
+    /* PC Full Screen Desktop Experience - ONLY when active tab is Graph or Journal */
+    body.pc-fullscreen-active {
         background-color: var(--bg-app) !important;
         overflow: hidden !important; /* Lock viewport scroll for app look */
     }
     
-    .app-container {
+    body.pc-fullscreen-active .app-container {
         max-width: 100% !important;
         height: 100vh !important;
         margin-top: 0 !important;
@@ -1552,7 +1552,7 @@ input, button, select, textarea {
     }
     
     /* Make the footer nav items centered and balanced on wide screens */
-    .app-footer {
+    body.pc-fullscreen-active .app-footer {
         justify-content: center !important;
         gap: 50px;
     }
