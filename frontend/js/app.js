@@ -1155,9 +1155,9 @@ function startQuoteStream() {
             
             if (data.error) {
                 // Connection or subscription issue
-                elements.scalpBuyPrice.innerText = '----.-';
-                elements.scalpSellPrice.innerText = '----.-';
-                elements.scalpSpreadMiddle.innerText = '---';
+                if (elements.scalpBuyPrice) elements.scalpBuyPrice.innerText = '----.-';
+                if (elements.scalpSellPrice) elements.scalpSellPrice.innerText = '----.-';
+                if (elements.scalpSpreadMiddle) elements.scalpSpreadMiddle.innerText = '---';
                 return;
             }
             
@@ -1169,9 +1169,9 @@ function startQuoteStream() {
             const formattedAsk = ask.toFixed(1);
             const spread = (ask - bid).toFixed(1);
             
-            elements.scalpBuyPrice.innerText = formattedAsk; // We BUY at Ask
-            elements.scalpSellPrice.innerText = formattedBid; // We SELL at Bid
-            elements.scalpSpreadMiddle.innerText = spread;
+            if (elements.scalpBuyPrice) elements.scalpBuyPrice.innerText = formattedAsk; // We BUY at Ask
+            if (elements.scalpSellPrice) elements.scalpSellPrice.innerText = formattedBid; // We SELL at Bid
+            if (elements.scalpSpreadMiddle) elements.scalpSpreadMiddle.innerText = spread;
 
             // Update graph tab price elements if present
             if (elements.graphBuyPrice) elements.graphBuyPrice.innerText = formattedAsk;
@@ -1280,9 +1280,9 @@ function startQuoteStream() {
     
     state.eventSource.onerror = (err) => {
         console.error("SSE Quote stream connection lost, retrying...", err);
-        elements.scalpBuyPrice.innerText = '----.-';
-        elements.scalpSellPrice.innerText = '----.-';
-        elements.scalpSpreadMiddle.innerText = '---';
+        if (elements.scalpBuyPrice) elements.scalpBuyPrice.innerText = '----.-';
+        if (elements.scalpSellPrice) elements.scalpSellPrice.innerText = '----.-';
+        if (elements.scalpSpreadMiddle) elements.scalpSpreadMiddle.innerText = '---';
         if (elements.graphBuyPrice) elements.graphBuyPrice.innerText = '----.-';
         if (elements.graphSellPrice) elements.graphSellPrice.innerText = '----.-';
         if (elements.graphSpreadMiddle) elements.graphSpreadMiddle.innerText = '---';
@@ -1663,7 +1663,9 @@ function renderFullPositionsTable(positions) {
     
     if (currentRenderState !== prevRenderState) {
         state.lastFullRenderState = currentRenderState;
-        elements.positionsCardsContainer.innerHTML = generatePositionsTableHTML(positions, false);
+        if (elements.positionsCardsContainer) {
+            elements.positionsCardsContainer.innerHTML = generatePositionsTableHTML(positions, false);
+        }
     } else {
         updateFullPositionsDOMValues(positions);
     }
@@ -2117,9 +2119,15 @@ function adjustAutoBE(ticket, delta) {
 // ORDER EXECUTION
 // ==========================================================================
 async function placeOrder(action) {
-    const lot = parseFloat(elements.lotInput.value);
-    const slPoints = parseFloat(elements.slInput.value) || 0;
-    const tpPoints = parseFloat(elements.tpInput.value) || 0;
+    const lotInput = elements.lotInput || elements.graphLotInput;
+    const slInput = elements.slInput || elements.graphSlInput;
+    const tpInput = elements.tpInput || elements.graphTpInput;
+    
+    if (!lotInput) return;
+    
+    const lot = parseFloat(lotInput.value);
+    const slPoints = slInput ? (parseFloat(slInput.value) || 0) : 0;
+    const tpPoints = tpInput ? (parseFloat(tpInput.value) || 0) : 0;
     
     if (isNaN(lot) || lot <= 0) {
         showToast("Le volume doit être un nombre positif", "danger");
@@ -3133,11 +3141,11 @@ async function loadConfigFromServer() {
         elements.cfgPathLong.value = config.terminal_path_long;
         elements.cfgPathShort.value = config.terminal_path_short;
         
-        // Update placeholders on Scalp panel
-        elements.lotInput.value = config.default_lot;
-        elements.slInput.value = config.default_sl_points;
-        elements.tpInput.value = config.default_tp_points;
-        elements.autoBeInput.value = config.auto_be_pips || 0;
+        // Update placeholders on Scalp panel if present
+        if (elements.lotInput) elements.lotInput.value = config.default_lot;
+        if (elements.slInput) elements.slInput.value = config.default_sl_points;
+        if (elements.tpInput) elements.tpInput.value = config.default_tp_points;
+        if (elements.autoBeInput) elements.autoBeInput.value = config.auto_be_pips || 0;
         
         // Sync preset active states
         syncPresets('lot-presets', config.default_lot);
@@ -3602,11 +3610,13 @@ function init() {
         elements.graphLimitPriceInput.addEventListener('change', updatePrice);
     }
     
-    // Setup Presets for Scalp tab
-    setupPresetSelector('lot-presets', elements.lotInput);
-    setupPresetSelector('sl-presets', elements.slInput);
-    setupPresetSelector('tp-presets', elements.tpInput);
-    setupPresetSelector('auto-be-presets', elements.autoBeInput);
+    // Setup Presets for Scalp tab if present
+    if (elements.lotInput) {
+        setupPresetSelector('lot-presets', elements.lotInput);
+        setupPresetSelector('sl-presets', elements.slInput);
+        setupPresetSelector('tp-presets', elements.tpInput);
+        setupPresetSelector('auto-be-presets', elements.autoBeInput);
+    }
     
     // Setup Presets for Graph tab
     setupPresetSelector('graph-lot-presets', elements.graphLotInput);
@@ -3677,9 +3687,9 @@ function init() {
     bindAdjusters();
     
     // Click events
-    elements.scalpBuyBtn.addEventListener('click', () => placeOrder('BUY'));
-    elements.scalpSellBtn.addEventListener('click', () => placeOrder('SELL'));
-    elements.closeAllBtn.addEventListener('click', handleCloseAllPositions);
+    if (elements.scalpBuyBtn) elements.scalpBuyBtn.addEventListener('click', () => placeOrder('BUY'));
+    if (elements.scalpSellBtn) elements.scalpSellBtn.addEventListener('click', () => placeOrder('SELL'));
+    if (elements.closeAllBtn) elements.closeAllBtn.addEventListener('click', handleCloseAllPositions);
     
     if (elements.graphBuyBtn) elements.graphBuyBtn.addEventListener('click', () => placeOrder('BUY'));
     if (elements.graphSellBtn) elements.graphSellBtn.addEventListener('click', () => placeOrder('SELL'));

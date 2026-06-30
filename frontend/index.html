@@ -43,224 +43,7 @@
         <!-- Main Content (Scrollable Viewport) -->
         <main class="app-main-viewport">
             
-            <!-- TAB: SCALP -->
-            <section id="tab-scalp" class="tab-content">
-                <!-- Unified Scalp Console Card -->
-                <div class="scalp-console-card">
-                    <!-- Top Row: Live Bid/Ask Interactive Buttons -->
-                    <div class="live-action-buttons">
-                        <button class="live-btn live-buy-btn" id="scalp-buy-btn">
-                            <span class="live-btn-title">BUY (LONG)</span>
-                            <span class="live-btn-price" id="scalp-buy-price">00000.0</span>
-                            <span class="live-btn-sub">Click to execute Long</span>
-                        </button>
-                        <div class="spread-badge-middle" id="scalp-spread-middle">0.0</div>
-                        <button class="live-btn live-sell-btn" id="scalp-sell-btn">
-                            <span class="live-btn-title">SELL (SHORT)</span>
-                            <span class="live-btn-price" id="scalp-sell-price">00000.0</span>
-                            <span class="live-btn-sub">Click to execute Short</span>
-                        </button>
-                    </div>
-
-                    <!-- Middle Row: Interactive Parameter Bar -->
-                    <div class="scalp-param-bar">
-                        <!-- Type -->
-                        <div class="param-bar-col clickable-param" id="param-col-type" onclick="toggleScalpParamPanel('type')">
-                            <span class="param-bar-label">Type</span>
-                            <span class="param-bar-value" id="val-display-type">Market</span>
-                        </div>
-                        <!-- Lot -->
-                        <div class="param-bar-col clickable-param" id="param-col-lot" onclick="toggleScalpParamPanel('lot')">
-                            <span class="param-bar-label">Lot</span>
-                            <span class="param-bar-value" id="val-display-lot">0.25</span>
-                        </div>
-                        <!-- Prix -->
-                        <div class="param-bar-col" id="param-col-price" onclick="toggleScalpParamPanel('price')">
-                            <span class="param-bar-label">Prix</span>
-                            <span class="param-bar-value" id="val-display-price">Mkt</span>
-                        </div>
-                        <!-- SL -->
-                        <div class="param-bar-col clickable-param" id="param-col-sl" onclick="toggleScalpParamPanel('sl')">
-                            <span class="param-bar-label">SL</span>
-                            <span class="param-bar-value" id="val-display-sl">-20</span>
-                        </div>
-                        <!-- BE -->
-                        <div class="param-bar-col clickable-param" id="param-col-be" onclick="toggleScalpParamPanel('be')">
-                            <span class="param-bar-label">BE</span>
-                            <span class="param-bar-value" id="val-display-be">Off</span>
-                        </div>
-                        <!-- TP -->
-                        <div class="param-bar-col clickable-param" id="param-col-tp" onclick="toggleScalpParamPanel('tp')">
-                            <span class="param-bar-label">TP</span>
-                            <span class="param-bar-value" id="val-display-tp">40</span>
-                        </div>
-                    </div>
-
-                    <!-- Bottom: Dynamic Parameter Panels -->
-                    <div class="scalp-param-panel-container">
-                        <!-- TYPE Panel -->
-                        <div class="scalp-param-panel" id="panel-scalp-type">
-                            <label class="panel-title">Type d'exécution</label>
-                            <div class="preset-selector" id="type-presets">
-                                <button class="preset-btn active" data-val="market">Market</button>
-                                <button class="preset-btn" data-val="limit">Limit</button>
-                            </div>
-                        </div>
-
-                        <!-- PRICE Panel -->
-                        <div class="scalp-param-panel" id="panel-scalp-price">
-                            <label class="panel-title">Prix cible</label>
-                            <div class="preset-selector">
-                                <button class="preset-btn price-adjust-btn" data-change="-10">-10</button>
-                                <button class="preset-btn price-adjust-btn" data-change="-1">-1</button>
-                                <button class="preset-btn price-adjust-btn" data-change="1">+1</button>
-                                <button class="preset-btn price-adjust-btn" data-change="10">+10</button>
-                                <div class="custom-input-wrapper">
-                                    <input type="number" id="input-limit-price" step="0.1" value="0" placeholder="Prix">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- LOT Panel -->
-                        <div class="scalp-param-panel" id="panel-scalp-lot">
-                            <label class="panel-title">Volume (Lots)</label>
-                            <div class="preset-selector" id="lot-presets">
-                                <button class="preset-btn active" data-val="0.25">0.25</button>
-                                <button class="preset-btn" data-val="0.75">0.75</button>
-                                <button class="preset-btn btn-split" data-val="0.75" data-split="true">0.75 Split</button>
-                                <button class="preset-btn btn-split" data-val="0.75" data-split="true" data-scenario="1">0.75 Sc1</button>
-                                <div class="custom-input-wrapper">
-                                    <input type="number" id="input-lot" step="0.01" min="0.01" value="0.25" placeholder="Custom">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- BE Panel -->
-                        <div class="scalp-param-panel" id="panel-scalp-be">
-                            <label class="panel-title">Auto break event (pips)</label>
-                            <div class="preset-selector" id="auto-be-presets">
-                                <button class="preset-btn active" data-val="0">off</button>
-                                <button class="preset-btn" data-val="10">10</button>
-                                <button class="preset-btn" data-val="20">20</button>
-                                <button class="preset-btn" data-val="40">40</button>
-                                <button class="preset-btn" data-val="60">60</button>
-                                <div class="custom-input-wrapper">
-                                    <input type="number" id="input-auto-be" step="1" min="0" value="0" placeholder="Custom">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- SL Panel -->
-                        <div class="scalp-param-panel" id="panel-scalp-sl">
-                            <label class="panel-title">Stop Loss (Points)</label>
-                            <div class="preset-selector" id="sl-presets">
-                                <button class="preset-btn" data-val="10">-10</button>
-                                <button class="preset-btn active" data-val="20">-20</button>
-                                <button class="preset-btn" data-val="40">-40</button>
-                                <button class="preset-btn" data-val="0">None</button>
-                                <div class="custom-input-wrapper">
-                                    <input type="number" id="input-sl-points" step="1" min="0" value="20" placeholder="Custom">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- TP Panel -->
-                        <div class="scalp-param-panel" id="panel-scalp-tp">
-                            <label class="panel-title">Take Profit (Points)</label>
-                            <div class="preset-selector" id="tp-presets">
-                                <button class="preset-btn" data-val="10">10</button>
-                                <button class="preset-btn" data-val="20">20</button>
-                                <button class="preset-btn active" data-val="40">40</button>
-                                <button class="preset-btn" data-val="0">None</button>
-                                <div class="custom-input-wrapper">
-                                    <input type="number" id="input-tp-points" step="1" min="0" value="40" placeholder="Custom">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Scalp Open Positions (Quick View) -->
-                <div class="quick-positions-section" id="section-quick-positions">
-                    <div class="section-header">
-                        <h3>Positions Actives (<span id="quick-pos-count">0</span>) <i class="fa-solid fa-chevron-down toggle-arrow"></i></h3>
-                        <span class="total-pnl-badge" id="quick-total-pnl">0.0 pips</span>
-                    </div>
-                    <div class="quick-positions-list" id="quick-positions-container">
-                        <!-- Filled dynamically -->
-                        <div class="no-positions-placeholder">
-                            <i class="fa-solid fa-folder-open"></i>
-                            <p>Aucune position active sur <span class="placeholder-sym">GER40</span></p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Scalp Pending Orders (Quick View) -->
-                <div class="quick-positions-section" id="section-quick-orders" style="margin-top: 15px;">
-                    <div class="section-header">
-                        <h3>Ordres en Attente (<span id="quick-orders-count">0</span>) <i class="fa-solid fa-chevron-down toggle-arrow"></i></h3>
-                    </div>
-                    <div class="quick-positions-list" id="quick-orders-container">
-                        <!-- Filled dynamically -->
-                        <div class="no-positions-placeholder">
-                            <i class="fa-solid fa-folder-open"></i>
-                            <p>Aucun ordre en attente sur <span class="placeholder-sym">GER40</span></p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-            <!-- TAB: POSITIONS -->
-            <section id="tab-positions" class="tab-content">
-                <!-- Summary Card -->
-                <div class="summary-dashboard">
-                    <div class="summary-metric">
-                        <span class="metric-label">Equity Totale</span>
-                        <span class="metric-val" id="dash-equity">0.00 EUR</span>
-                    </div>
-                    <div class="summary-metric">
-                        <span class="metric-label">Balance</span>
-                        <span class="metric-val" id="dash-balance">0.00 EUR</span>
-                    </div>
-                    <div class="summary-metric">
-                        <span class="metric-label">Marge Libre</span>
-                        <span class="metric-val" id="dash-free-margin">0.00 EUR</span>
-                    </div>
-                </div>
-
-                <!-- Full Positions List -->
-                <div class="positions-full-card" id="section-full-positions">
-                    <div class="section-header">
-                        <h3>Liste des Positions <i class="fa-solid fa-chevron-down toggle-arrow"></i></h3>
-                        <button class="btn btn-outline-danger btn-sm" id="close-all-btn">
-                            <i class="fa-solid fa-trash-can"></i> Tout Fermer
-                        </button>
-                    </div>
-
-                    <div class="positions-cards-list" id="positions-cards-container">
-                        <!-- Filled dynamically -->
-                        <div class="no-positions-placeholder">
-                            <i class="fa-solid fa-folder-open"></i>
-                            <p>Aucune position ouverte</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Full Pending Orders List -->
-                <div class="positions-full-card" id="section-full-orders" style="margin-top: 15px;">
-                    <div class="section-header">
-                        <h3>Liste des Ordres en Attente <i class="fa-solid fa-chevron-down toggle-arrow"></i></h3>
-                    </div>
-
-                    <div class="positions-cards-list" id="orders-cards-container">
-                        <!-- Filled dynamically -->
-                        <div class="no-positions-placeholder">
-                            <i class="fa-solid fa-folder-open"></i>
-                            <p>Aucun ordre en attente</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <!-- Obsolete Scalp and Positions tabs removed (their features are consolidated in the Trade tab) -->
             
             <!-- TAB: JOURNAL & STATS -->
             <section id="tab-journal" class="tab-content">
@@ -640,7 +423,12 @@
                 <div class="quick-positions-section" id="section-graph-positions" style="margin-top: 10px;">
                     <div class="section-header">
                         <h3>Positions Actives (<span id="graph-pos-count">0</span>) <i class="fa-solid fa-chevron-down toggle-arrow"></i></h3>
-                        <span class="total-pnl-badge" id="graph-total-pnl">0.0 pips</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="total-pnl-badge" id="graph-total-pnl">0.0 pips</span>
+                            <button class="btn btn-outline-danger btn-sm" id="close-all-btn" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
+                                <i class="fa-solid fa-trash-can"></i> Tout Fermer
+                            </button>
+                        </div>
                     </div>
                     <div class="quick-positions-list" id="graph-positions-container">
                         <!-- Filled dynamically -->
@@ -673,14 +461,6 @@
             <button class="nav-item active" data-tab="tab-graph">
                 <i class="fa-solid fa-chart-line"></i>
                 <span>Trade</span>
-            </button>
-            <button class="nav-item" data-tab="tab-scalp">
-                <i class="fa-solid fa-bolt"></i>
-                <span>Scalp</span>
-            </button>
-            <button class="nav-item" data-tab="tab-positions">
-                <i class="fa-solid fa-briefcase"></i>
-                <span>Positions</span>
             </button>
             <button class="nav-item" data-tab="tab-journal">
                 <i class="fa-solid fa-book"></i>
@@ -768,6 +548,6 @@
     <script src="/static/js/lightweight-charts.js"></script>
     
     <!-- Application Script -->
-    <script src="/static/js/app.js?v=91"></script>
+    <script src="/static/js/app.js?v=92"></script>
 </body>
 </html>
