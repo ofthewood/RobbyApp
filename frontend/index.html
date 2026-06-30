@@ -264,98 +264,122 @@
             
             <!-- TAB: JOURNAL & STATS -->
             <section id="tab-journal" class="tab-content">
-                <!-- Account Summary Dashboard -->
-                <div class="summary-dashboard">
-                    <div class="summary-metric">
-                        <span class="metric-label">Equity Totale</span>
-                        <span class="metric-val" id="journal-equity">0.00 EUR</span>
-                    </div>
-                    <div class="summary-metric">
-                        <span class="metric-label">Balance</span>
-                        <span class="metric-val" id="journal-balance">0.00 EUR</span>
-                    </div>
-                    <div class="summary-metric">
-                        <span class="metric-label">Marge Libre</span>
-                        <span class="metric-val" id="journal-free-margin">0.00 EUR</span>
-                    </div>
-                </div>
+                <div class="journal-layout-wrapper">
+                    <!-- LEFT COLUMN: Stats, tables and logs -->
+                    <div class="journal-left-col">
+                        <!-- Account Summary Dashboard -->
+                        <div class="summary-dashboard">
+                            <div class="summary-metric">
+                                <span class="metric-label">Equity Totale</span>
+                                <span class="metric-val" id="journal-equity">0.00 EUR</span>
+                            </div>
+                            <div class="summary-metric">
+                                <span class="metric-label">Balance</span>
+                                <span class="metric-val" id="journal-balance">0.00 EUR</span>
+                            </div>
+                            <div class="summary-metric">
+                                <span class="metric-label">Marge Libre</span>
+                                <span class="metric-val" id="journal-free-margin">0.00 EUR</span>
+                            </div>
+                        </div>
 
-                <!-- Display Unit Selector -->
-                <div class="param-card" style="padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 5px; margin-bottom: 5px;">
-                    <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">Unité d'affichage</span>
-                    <div class="preset-selector" id="journal-unit-selector" style="width: 140px; margin: 0;">
-                        <button class="preset-btn active" data-unit="EUR">€</button>
-                        <button class="preset-btn" data-unit="PIPS">Pips</button>
-                    </div>
-                </div>
+                        <!-- Display Unit Selector -->
+                        <div class="param-card" style="padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 5px; margin-bottom: 5px;">
+                            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px;">Unité d'affichage</span>
+                            <div class="preset-selector" id="journal-unit-selector" style="width: 140px; margin: 0;">
+                                <button class="preset-btn active" data-unit="EUR">€</button>
+                                <button class="preset-btn" data-unit="PIPS">Pips</button>
+                            </div>
+                        </div>
 
-                <!-- Stats Summary Dashboard -->
-                <div class="summary-dashboard stats-dashboard">
-                    <div class="summary-metric">
-                        <span class="metric-label">Gain Net</span>
-                        <span class="metric-val" id="stats-total-net">0.00 EUR</span>
-                    </div>
-                    <div class="summary-metric">
-                        <span class="metric-label">Trades</span>
-                        <span class="metric-val" id="stats-total-trades">0</span>
-                    </div>
-                    <div class="summary-metric">
-                        <span class="metric-label">Win Rate</span>
-                        <span class="metric-val" id="stats-win-rate">0.0%</span>
-                    </div>
-                    <div class="summary-metric">
-                        <span class="metric-label">Moy. / Trade</span>
-                        <span class="metric-val" id="stats-avg-trade">0.00 EUR</span>
-                    </div>
-                </div>
+                        <!-- Stats Summary Dashboard -->
+                        <div class="summary-dashboard stats-dashboard">
+                            <div class="summary-metric">
+                                <span class="metric-label">Gain Net</span>
+                                <span class="metric-val" id="stats-total-net">0.00 EUR</span>
+                            </div>
+                            <div class="summary-metric">
+                                <span class="metric-label">Trades</span>
+                                <span class="metric-val" id="stats-total-trades">0</span>
+                            </div>
+                            <div class="summary-metric">
+                                <span class="metric-label">Win Rate</span>
+                                <span class="metric-val" id="stats-win-rate">0.0%</span>
+                            </div>
+                            <div class="summary-metric">
+                                <span class="metric-label">Moy. / Trade</span>
+                                <span class="metric-val" id="stats-avg-trade">0.00 EUR</span>
+                            </div>
+                        </div>
 
-                <!-- Daily Summary Section -->
-                <div class="param-card journal-stats-card">
-                    <h3>Performance par Jour</h3>
-                    <div class="stats-table-wrapper" style="max-height: 250px; overflow-y: auto;">
-                        <table class="positions-table stats-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Trades</th>
-                                    <th>G / BE / P</th>
-                                    <th>Gain Net</th>
-                                </tr>
-                            </thead>
-                            <tbody id="stats-daily-tbody">
-                                <tr>
-                                    <td colspan="4" class="no-data-cell" style="text-align: center; color: var(--text-muted); padding: 20px;">Aucune donnée disponible</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                        <!-- Daily Summary Section -->
+                        <div class="param-card journal-stats-card">
+                            <h3>Performance par Jour</h3>
+                            <div class="stats-table-wrapper" style="max-height: 250px; overflow-y: auto;">
+                                <table class="positions-table stats-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Trades</th>
+                                            <th>G / BE / P</th>
+                                            <th>Gain Net</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="stats-daily-tbody">
+                                        <tr>
+                                            <td colspan="4" class="no-data-cell" style="text-align: center; color: var(--text-muted); padding: 20px;">Aucune donnée disponible</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
 
-                <!-- Reconstructed Completed Trades Log -->
-                <div class="positions-full-card journal-trades-card">
-                    <div class="section-header">
-                        <h3>Historique des Transactions (30j)</h3>
-                        <button class="btn btn-primary btn-sm" id="export-csv-btn">
-                            <i class="fa-solid fa-file-csv"></i> Exporter CSV
-                        </button>
+                        <!-- Reconstructed Completed Trades Log -->
+                        <div class="positions-full-card journal-trades-card">
+                            <div class="section-header">
+                                <h3>Historique des Transactions (30j)</h3>
+                                <button class="btn btn-primary btn-sm" id="export-csv-btn">
+                                    <i class="fa-solid fa-file-csv"></i> Exporter CSV
+                                </button>
+                            </div>
+                            <div class="stats-table-wrapper" style="max-height: 350px; overflow-y: auto;">
+                                <table class="positions-table history-trades-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Sens</th>
+                                            <th>Lot</th>
+                                            <th>Entrée / Sortie</th>
+                                            <th>Durée</th>
+                                            <th>Net PnL</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="stats-trades-tbody">
+                                        <tr>
+                                            <td colspan="5" class="no-data-cell" style="text-align: center; color: var(--text-muted); padding: 20px;">Aucune position fermée récente</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
-                    <div class="stats-table-wrapper" style="max-height: 350px; overflow-y: auto;">
-                        <table class="positions-table history-trades-table">
-                            <thead>
-                                <tr>
-                                    <th>Sens</th>
-                                    <th>Lot</th>
-                                    <th>Entrée / Sortie</th>
-                                    <th>Durée</th>
-                                    <th>Net PnL</th>
-                                </tr>
-                            </thead>
-                            <tbody id="stats-trades-tbody">
-                                <tr>
-                                    <td colspan="5" class="no-data-cell" style="text-align: center; color: var(--text-muted); padding: 20px;">Aucune position fermée récente</td>
-                                </tr>
-                            </tbody>
-                        </table>
+
+                    <!-- RIGHT COLUMN: Trade Analysis Chart (PC Only) -->
+                    <div class="journal-right-col">
+                        <div class="positions-full-card" id="analysis-chart-card" style="height: 100%; display: flex; flex-direction: column; margin: 0; position: relative;">
+                            <div class="section-header" style="padding: 8px 12px; margin-bottom: 0px;">
+                                <h3 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                                    <i class="fa-solid fa-chart-line" style="color: var(--color-primary);"></i>
+                                    Analyse Graphique
+                                    <span id="analysis-active-date" style="font-weight: 500; color: var(--text-muted); font-size: 11px;">(Sélectionnez un jour)</span>
+                                </h3>
+                                <button class="btn btn-outline-primary btn-sm" id="btn-fullscreen-analysis" style="font-size: 10px; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-expand"></i> Plein écran
+                                </button>
+                            </div>
+                            <div id="analysis-chart-container" style="flex-grow: 1; min-height: 350px; position: relative; border-radius: 6px; overflow: hidden; background: var(--bg-card);">
+                                <div id="analysis_chart" style="height: 100%; width: 100%;"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -744,6 +768,6 @@
     <script src="/static/js/lightweight-charts.js"></script>
     
     <!-- Application Script -->
-    <script src="/static/js/app.js?v=84"></script>
+    <script src="/static/js/app.js?v=90"></script>
 </body>
 </html>

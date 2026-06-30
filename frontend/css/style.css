@@ -1832,3 +1832,85 @@ input, button, select, textarea {
     color: var(--primary-color);
     font-weight: 700;
 }
+
+/* Journal Tab Two-Column Layout (Desktop-Optimized) */
+.journal-layout-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+}
+
+.journal-left-col {
+    width: 100%;
+}
+
+.journal-right-col {
+    width: 100%;
+    display: none; /* Hidden on mobile by default */
+}
+
+/* Wide screen split-screen styling */
+@media (min-width: 1024px) {
+    .journal-layout-wrapper {
+        flex-direction: row;
+        align-items: stretch;
+        gap: 20px;
+        height: calc(100vh - var(--header-height) - var(--footer-height) - 40px);
+        overflow: hidden;
+    }
+    
+    .journal-left-col {
+        width: 50%;
+        height: 100%;
+        overflow-y: auto;
+        padding-right: 8px;
+    }
+    
+    .journal-right-col {
+        width: 50%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        border-left: 1px solid var(--border-color);
+        padding-left: 15px;
+    }
+    
+    /* Fullscreen/Maximized analysis chart state */
+    .journal-layout-wrapper.fullscreen-active .journal-left-col {
+        display: none !important;
+    }
+    
+    .journal-layout-wrapper.fullscreen-active .journal-right-col {
+        width: 100% !important;
+        border-left: none !important;
+        padding-left: 0 !important;
+    }
+}
+
+/* Analysis Chart container styles */
+#analysis-chart-container {
+    width: 100%;
+    flex-grow: 1;
+    position: relative;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+}
+
+/* Clickable rows in history trades table */
+.history-trades-table tbody tr {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.history-trades-table tbody tr:hover {
+    background-color: var(--bg-input) !important;
+}
+
+.history-trades-table tbody tr.active-inspect-row {
+    background-color: #eff6ff !important; /* Soft highlighted blue row */
+    border-left: 3px solid var(--primary-color) !important;
+}
+

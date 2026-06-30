@@ -274,8 +274,10 @@ function renderHistoryTab(data) {
                 const netValStr = state.journalUnit === 'EUR'
                     ? `${day.net >= 0 ? '+' : ''}${day.net.toFixed(2)} EUR`
                     : `${day.pips >= 0 ? '+' : ''}${(day.pips || 0).toFixed(1)} pips`;
+                
+                const activeClass = analysisSelectedDate === day.date ? "active-inspect-row" : "";
                 html += `
-                    <tr>
+                    <tr class="daily-stat-row ${activeClass}" data-date="${day.date}">
                         <td><strong>${formattedDate}</strong></td>
                         <td>${day.trades_count}</td>
                         <td>${gbe}</td>
@@ -303,8 +305,9 @@ function renderHistoryTab(data) {
                     ? `${t.net >= 0 ? '+' : ''}${t.net.toFixed(2)} EUR`
                     : `${t.pips >= 0 ? '+' : ''}${(t.pips || 0).toFixed(1)} pips`;
                 
+                const activeClass = analysisSelectedTradeId === t.position_id ? "active-inspect-row" : "";
                 html += `
-                    <tr>
+                    <tr class="history-trade-row ${activeClass}" data-id="${t.position_id}">
                         <td><span class="type-tag ${typeClass}">${typeLetter}</span></td>
                         <td>${t.volume.toFixed(2)}</td>
                         <td style="font-size: 11px; color: var(--text-secondary);">
@@ -317,6 +320,57 @@ function renderHistoryTab(data) {
                 `;
             });
             tradesTbody.innerHTML = html;
+        }
+    }
+
+    // Bind Daily Breakdown click handlers
+    document.querySelectorAll('.daily-stat-row').forEach(row => {
+        row.addEventListener('click', () => {
+            const dateStr = row.getAttribute('data-date');
+            analysisSelectedDate = dateStr;
+            
+            // Highlight row
+            document.querySelectorAll('.daily-stat-row').forEach(r => r.classList.remove('active-inspect-row'));
+            row.classList.add('active-inspect-row');
+            
+            // Load chart
+            const dateSpan = document.getElementById('analysis-active-date');
+            if (dateSpan) dateSpan.innerText = `(${dateStr})`;
+            loadAnalysisChartData(dateStr);
+        });
+    });
+    
+    // Bind History Trades click handlers
+    document.querySelectorAll('.history-trade-row').forEach(row => {
+        row.addEventListener('click', () => {
+            const tradeId = parseInt(row.getAttribute('data-id'));
+            inspectTrade(tradeId);
+        });
+    });
+    
+    // Auto-select and load the first day on initial draw if none selected
+    if (stats.length > 0) {
+        if (!analysisSelectedDate) {
+            const firstDate = stats[0].date;
+            analysisSelectedDate = firstDate;
+            setTimeout(() => {
+                const firstRow = document.querySelector(`.daily-stat-row[data-date="${firstDate}"]`);
+                if (firstRow) {
+                    firstRow.click();
+                } else {
+                    const dateSpan = document.getElementById('analysis-active-date');
+                    if (dateSpan) dateSpan.innerText = `(${firstDate})`;
+                    loadAnalysisChartData(firstDate);
+                }
+            }, 100);
+        } else {
+            // Reload current selected day's chart to keep it fresh
+            setTimeout(() => {
+                loadAnalysisChartData(analysisSelectedDate);
+                if (analysisSelectedTradeId) {
+                    inspectTrade(analysisSelectedTradeId);
+                }
+            }, 100);
         }
     }
 }
@@ -415,6 +469,15 @@ function initNavigation() {
             
             if (targetTabId === 'tab-journal') {
                 fetchHistoryData();
+                setTimeout(() => {
+                    initAnalysisChart();
+                    if (analysisChartInstance) {
+                        const container = document.getElementById('analysis_chart');
+                        if (container && container.clientWidth > 0) {
+                            analysisChartInstance.resize(container.clientWidth, container.clientHeight);
+                        }
+                    }
+                }, 100);
             }
             
             // Toggle viewport scroll behavior to prevent iOS gesture interception on the chart
@@ -444,6 +507,14 @@ let lwSmaSeries = null;
 let lwBbBasisSeries = null;
 let lwBbUpperSeries = null;
 let lwBbLowerSeries = null;
+
+// Analysis Chart Globals
+let analysisChartInstance = null;
+let analysisCandlestickSeries = null;
+let analysisPnlSeries = null;
+let analysisConnectorSeries = null;
+let analysisSelectedDate = null;
+let analysisSelectedTradeId = null;
 
 let currentResolution = "15S";
 let chartBars = []; // Track historical bars to update correctly on ticks
@@ -605,6 +676,270 @@ function loadTradingViewWidget() {
         // keeps chartBars and the series fully up-to-date in the background.
         // This preserves the user's manual zoom and scroll positions.
     }
+}
+
+// ==========================================================================
+// TRADE ANALYSIS CHART LOGIC (PC/DESKTOP SPLIT VIEW)
+// ==========================================================================
+function initAnalysisChart() {
+    const container = document.getElementById('analysis_chart');
+    if (!container || analysisChartInstance) return;
+    
+    // Only initialize if container is visible and has dimension (desktop viewports)
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    if (w === 0 || h === 0) return;
+    
+    console.log(`Initializing trade analysis chart: ${w}x${h}`);
+    
+    analysisChartInstance = LightweightCharts.createChart(container, {
+        width: w,
+        height: h,
+        layout: {
+            background: { type: 'solid', color: 'transparent' },
+            textColor: '#64748b',
+            fontSize: 10,
+            fontFamily: 'Inter, sans-serif',
+        },
+        grid: {
+            vertLines: { color: 'rgba(226, 232, 240, 0.4)' },
+            horzLines: { color: 'rgba(226, 232, 240, 0.4)' },
+        },
+        rightPriceScale: {
+            borderColor: 'rgba(226, 232, 240, 0.8)',
+            visible: true,
+        },
+        leftPriceScale: {
+            borderColor: 'rgba(226, 232, 240, 0.8)',
+            visible: true,
+        },
+        timeScale: {
+            borderColor: 'rgba(226, 232, 240, 0.8)',
+            timeVisible: true,
+            secondsVisible: false,
+        },
+        crosshair: {
+            mode: 1, // CrosshairMode.Normal
+            vertLine: {
+                labelVisible: false,
+            },
+            horzLine: {
+                labelVisible: false,
+            }
+        }
+    });
+    
+    // Add Candlestick Series (Right price scale)
+    analysisCandlestickSeries = analysisChartInstance.addSeries(LightweightCharts.CandlestickSeries, {
+        upColor: '#26a69a',
+        downColor: '#ef5350',
+        borderVisible: false,
+        wickDownColor: '#ef5350',
+        wickUpColor: '#26a69a',
+        lastValueVisible: false,
+        priceLineVisible: false
+    });
+    
+    // Add PnL line series (Mapped to left price scale)
+    analysisPnlSeries = analysisChartInstance.addSeries(LightweightCharts.LineSeries, {
+        color: '#29b6f6',
+        lineWidth: 2,
+        priceScaleId: 'left', // Map to left-side axis!
+        lastValueVisible: false,
+        priceLineVisible: false
+    });
+    
+    // Enable left price scale
+    analysisChartInstance.priceScale('left').applyOptions({
+        visible: true,
+        borderVisible: true,
+    });
+}
+
+async function loadAnalysisChartData(selectedDate) {
+    if (!analysisChartInstance) initAnalysisChart();
+    if (!analysisChartInstance) return;
+    
+    if (!state.lastHistoryData || !state.lastHistoryData.trades) return;
+    const allTrades = state.lastHistoryData.trades;
+    
+    const getLocalDateStr = (timestamp) => {
+        const date = new Date(timestamp * 1000);
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
+    
+    // Filter trades for this date
+    const dayTrades = allTrades.filter(t => getLocalDateStr(t.close_time) === selectedDate);
+    
+    // Determine time range bounds (standard 8am to 6pm, or adapted to trades)
+    let minOpenTime = Math.floor(new Date(selectedDate + "T08:00:00").getTime() / 1000);
+    let maxCloseTime = Math.floor(new Date(selectedDate + "T18:00:00").getTime() / 1000);
+    
+    if (dayTrades.length > 0) {
+        const openTimes = dayTrades.map(t => t.open_time);
+        const closeTimes = dayTrades.map(t => t.close_time);
+        minOpenTime = Math.min(...openTimes);
+        maxCloseTime = Math.max(...closeTimes);
+    }
+    
+    // Add 1 hour margin before first open and after last close
+    const fromTime = minOpenTime - 3600;
+    const toTime = maxCloseTime + 3600;
+    
+    const symbol = state.config.symbol;
+    const resolution = "1"; // 1-minute candles for precise trading review
+    const url = `/api/udf/history?symbol=${encodeURIComponent(symbol)}&resolution=${resolution}&from=${fromTime}&to=${toTime}`;
+    
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.s === "no_data" || !data.t || data.t.length === 0) {
+            analysisCandlestickSeries.setData([]);
+            analysisPnlSeries.setData([]);
+            if (analysisConnectorSeries) {
+                analysisConnectorSeries.setData([]);
+            }
+            return;
+        }
+        
+        const bars = [];
+        for (let i = 0; i < data.t.length; i++) {
+            bars.push({
+                time: data.t[i],
+                open: data.o[i],
+                high: data.h[i],
+                low: data.l[i],
+                close: data.c[i]
+            });
+        }
+        analysisCandlestickSeries.setData(bars);
+        
+        // Clear old trade connector line
+        if (analysisConnectorSeries) {
+            analysisConnectorSeries.setData([]);
+        }
+        
+        // Plot ALL daily trades entry/exit markers
+        const markers = [];
+        dayTrades.forEach(t => {
+            // Entry marker
+            markers.push({
+                time: t.open_time,
+                position: t.type === 'BUY' ? 'belowBar' : 'aboveBar',
+                color: t.type === 'BUY' ? '#26a69a' : '#ef5350',
+                shape: t.type === 'BUY' ? 'arrowUp' : 'arrowDown',
+                text: `${t.type} ${t.volume.toFixed(2)}`
+            });
+            // Exit marker
+            const pipsText = `${t.pips >= 0 ? '+' : ''}${t.pips}p`;
+            markers.push({
+                time: t.close_time,
+                position: t.type === 'BUY' ? 'aboveBar' : 'belowBar',
+                color: t.net >= 0 ? '#26a69a' : '#ef5350',
+                shape: t.type === 'BUY' ? 'arrowDown' : 'arrowUp',
+                text: `Exit (${pipsText})`
+            });
+        });
+        
+        // Sort chronologically
+        markers.sort((a, b) => a.time - b.time);
+        analysisCandlestickSeries.setMarkers(markers);
+        
+        // Plot Cumulative PnL (Equity) on the separate left scale
+        const pnlPoints = [];
+        let cumulativeVal = 0;
+        const chronologicalTrades = [...dayTrades].sort((a, b) => a.close_time - b.close_time);
+        
+        if (chronologicalTrades.length > 0) {
+            // Set 0 baseline starting point
+            pnlPoints.push({
+                time: chronologicalTrades[0].open_time - 60,
+                value: 0
+            });
+            
+            let lastTimestamp = 0;
+            chronologicalTrades.forEach(t => {
+                cumulativeVal += state.journalUnit === 'EUR' ? t.net : t.pips;
+                let tTime = t.close_time;
+                // Offset duplicate timestamps
+                if (tTime <= lastTimestamp) {
+                    tTime = lastTimestamp + 1;
+                }
+                lastTimestamp = tTime;
+                
+                pnlPoints.push({
+                    time: tTime,
+                    value: cumulativeVal
+                });
+            });
+            
+            // Stretch the line to the last loaded candle time for continuity
+            const lastCandleTime = data.t[data.t.length - 1];
+            if (lastCandleTime > lastTimestamp) {
+                pnlPoints.push({
+                    time: lastCandleTime,
+                    value: cumulativeVal
+                });
+            }
+        }
+        analysisPnlSeries.setData(pnlPoints);
+        
+        // Fit content
+        analysisChartInstance.timeScale().fitContent();
+        
+    } catch (err) {
+        console.error("Error loading analysis chart data:", err);
+    }
+}
+
+function inspectTrade(tradeId) {
+    if (!state.lastHistoryData || !state.lastHistoryData.trades || !analysisChartInstance) return;
+    
+    const trade = state.lastHistoryData.trades.find(t => t.position_id === tradeId);
+    if (!trade) return;
+    
+    console.log(`Inspecting trade: ${tradeId}`, trade);
+    analysisSelectedTradeId = tradeId;
+    
+    // Highlight table row
+    document.querySelectorAll('.history-trade-row').forEach(row => {
+        if (row.getAttribute('data-id') === String(tradeId)) {
+            row.classList.add('active-inspect-row');
+        } else {
+            row.classList.remove('active-inspect-row');
+        }
+    });
+    
+    // Draw dotted connection line between open and close points
+    if (!analysisConnectorSeries) {
+        analysisConnectorSeries = analysisChartInstance.addSeries(LightweightCharts.LineSeries, {
+            color: trade.net >= 0 ? '#26a69a' : '#ef5350',
+            lineWidth: 2,
+            lineStyle: 2, // Dashed
+            lastValueVisible: false,
+            priceLineVisible: false
+        });
+    } else {
+        analysisConnectorSeries.applyOptions({
+            color: trade.net >= 0 ? '#26a69a' : '#ef5350'
+        });
+    }
+    
+    analysisConnectorSeries.setData([
+        { time: trade.open_time, value: trade.open_price },
+        { time: trade.close_time, value: trade.close_price }
+    ]);
+    
+    // Zoom/Focus timescale to trade span with 3 minutes margin
+    const marginSecs = 180;
+    analysisChartInstance.timeScale().setVisibleRange({
+        from: trade.open_time - marginSecs,
+        to: trade.close_time + marginSecs
+    });
 }
 
 async function loadChartData(symbol, resolution, shouldFit = false) {
@@ -3154,6 +3489,33 @@ function init() {
     initNavigation();
     initChartResizer();
     initCollapsibleSections();
+    
+    // Fullscreen Analysis Chart Toggle
+    const btnFullscreen = document.getElementById('btn-fullscreen-analysis');
+    if (btnFullscreen) {
+        btnFullscreen.addEventListener('click', () => {
+            const wrapper = document.querySelector('.journal-layout-wrapper');
+            if (wrapper) {
+                const isActive = wrapper.classList.toggle('fullscreen-active');
+                
+                // Update button text and icon
+                btnFullscreen.innerHTML = isActive
+                    ? '<i class="fa-solid fa-compress"></i> Réduire'
+                    : '<i class="fa-solid fa-expand"></i> Plein écran';
+                
+                // Resize chart to adapt to full container size
+                setTimeout(() => {
+                    if (analysisChartInstance) {
+                        const container = document.getElementById('analysis_chart');
+                        if (container && container.clientWidth > 0) {
+                            analysisChartInstance.resize(container.clientWidth, container.clientHeight);
+                            analysisChartInstance.timeScale().fitContent();
+                        }
+                    }
+                }, 150); // slight delay for layout transitions
+            }
+        });
+    }
     
     // Sync parameter bar values on change/input for Scalp tab
     ['input-lot', 'input-auto-be', 'input-sl-points', 'input-tp-points', 'input-limit-price'].forEach(id => {
