@@ -477,12 +477,12 @@ function initNavigation() {
             if (targetTabId === 'tab-journal') {
                 fetchHistoryData();
                 setTimeout(() => {
-                    initAnalysisChart();
-                    if (analysisChartInstance) {
-                        const container = document.getElementById('analysis_chart');
-                        if (container && container.clientWidth > 0) {
-                            analysisChartInstance.resize(container.clientWidth, container.clientHeight);
-                        }
+                    if (analysisSelectedDate) {
+                        const dateSpan = document.getElementById('analysis-active-date');
+                        if (dateSpan) dateSpan.innerText = `(${analysisSelectedDate})`;
+                        loadAnalysisChartData(analysisSelectedDate);
+                    } else {
+                        initAnalysisChart();
                     }
                 }, 100);
             }
@@ -768,6 +768,17 @@ function initAnalysisChart() {
     analysisChartInstance.priceScale('left').applyOptions({
         visible: true,
         borderVisible: true,
+    });
+    
+    // Bind window resize event (safeguarded against 0 sizes when tab is inactive)
+    window.addEventListener('resize', () => {
+        if (analysisChartInstance && container) {
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            if (w > 0 && h > 0) {
+                analysisChartInstance.resize(w, h);
+            }
+        }
     });
 }
 
