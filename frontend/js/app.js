@@ -1382,44 +1382,52 @@ async function fetchStatus() {
         
         // Update long status badge UI
         if (data.long_terminal.connected) {
-            elements.statusLongBadge.className = "status-badge connected";
-            elements.statusLongBadge.querySelector('.status-text').innerText = "LONG CONNECTED";
+            if (elements.statusLongBadge) {
+                elements.statusLongBadge.className = "status-badge connected";
+                elements.statusLongBadge.querySelector('.status-text').innerText = "LONG CONNECTED";
+            }
             
             // Config account card
             const acc = data.long_terminal.account_info;
-            elements.accSrvLong.innerText = acc.server;
-            elements.accLogLong.innerText = acc.login;
-            elements.accBalLong.innerText = `${acc.balance.toFixed(2)} ${acc.currency}`;
-            elements.accLevLong.innerText = `1:${acc.leverage}`;
+            if (elements.accSrvLong) elements.accSrvLong.innerText = acc.server;
+            if (elements.accLogLong) elements.accLogLong.innerText = acc.login;
+            if (elements.accBalLong) elements.accBalLong.innerText = `${acc.balance.toFixed(2)} ${acc.currency}`;
+            if (elements.accLevLong) elements.accLevLong.innerText = `1:${acc.leverage}`;
         } else {
-            elements.statusLongBadge.className = "status-badge disconnected";
-            elements.statusLongBadge.querySelector('.status-text').innerText = "LONG DISCONNECTED";
+            if (elements.statusLongBadge) {
+                elements.statusLongBadge.className = "status-badge disconnected";
+                elements.statusLongBadge.querySelector('.status-text').innerText = "LONG DISCONNECTED";
+            }
             
-            elements.accSrvLong.innerText = "-";
-            elements.accLogLong.innerText = "-";
-            elements.accBalLong.innerText = "-";
-            elements.accLevLong.innerText = "-";
+            if (elements.accSrvLong) elements.accSrvLong.innerText = "-";
+            if (elements.accLogLong) elements.accLogLong.innerText = "-";
+            if (elements.accBalLong) elements.accBalLong.innerText = "-";
+            if (elements.accLevLong) elements.accLevLong.innerText = "-";
         }
 
         // Update short status badge UI
         if (data.short_terminal.connected) {
-            elements.statusShortBadge.className = "status-badge connected";
-            elements.statusShortBadge.querySelector('.status-text').innerText = "SHORT CONNECTED";
+            if (elements.statusShortBadge) {
+                elements.statusShortBadge.className = "status-badge connected";
+                elements.statusShortBadge.querySelector('.status-text').innerText = "SHORT CONNECTED";
+            }
             
             // Config account card
             const acc = data.short_terminal.account_info;
-            elements.accSrvShort.innerText = acc.server;
-            elements.accLogShort.innerText = acc.login;
-            elements.accBalShort.innerText = `${acc.balance.toFixed(2)} ${acc.currency}`;
-            elements.accLevShort.innerText = `1:${acc.leverage}`;
+            if (elements.accSrvShort) elements.accSrvShort.innerText = acc.server;
+            if (elements.accLogShort) elements.accLogShort.innerText = acc.login;
+            if (elements.accBalShort) elements.accBalShort.innerText = `${acc.balance.toFixed(2)} ${acc.currency}`;
+            if (elements.accLevShort) elements.accLevShort.innerText = `1:${acc.leverage}`;
         } else {
-            elements.statusShortBadge.className = "status-badge disconnected";
-            elements.statusShortBadge.querySelector('.status-text').innerText = "SHORT DISCONNECTED";
+            if (elements.statusShortBadge) {
+                elements.statusShortBadge.className = "status-badge disconnected";
+                elements.statusShortBadge.querySelector('.status-text').innerText = "SHORT DISCONNECTED";
+            }
             
-            elements.accSrvShort.innerText = "-";
-            elements.accLogShort.innerText = "-";
-            elements.accBalShort.innerText = "-";
-            elements.accLevShort.innerText = "-";
+            if (elements.accSrvShort) elements.accSrvShort.innerText = "-";
+            if (elements.accLogShort) elements.accLogShort.innerText = "-";
+            if (elements.accBalShort) elements.accBalShort.innerText = "-";
+            if (elements.accLevShort) elements.accLevShort.innerText = "-";
         }
         
     } catch (err) {
@@ -1458,9 +1466,11 @@ async function fetchPositions() {
         });
         
         // Update Quick positions stats
-        elements.quickPosCount.innerText = symbolPositions.length;
-        elements.quickTotalPnL.innerText = `${totalPnLPips >= 0 ? '+' : ''}${totalPnLPips.toFixed(1)} pips`;
-        elements.quickTotalPnL.className = `total-pnl-badge ${totalPnLPips >= 0 ? 'profit-bg' : 'loss-bg'}`;
+        if (elements.quickPosCount) elements.quickPosCount.innerText = symbolPositions.length;
+        if (elements.quickTotalPnL) {
+            elements.quickTotalPnL.innerText = `${totalPnLPips >= 0 ? '+' : ''}${totalPnLPips.toFixed(1)} pips`;
+            elements.quickTotalPnL.className = `total-pnl-badge ${totalPnLPips >= 0 ? 'profit-bg' : 'loss-bg'}`;
+        }
         
         // Update Quick orders stats
         if (elements.quickOrdersCount) elements.quickOrdersCount.innerText = symbolOrders.length;
@@ -1498,15 +1508,16 @@ async function fetchPositions() {
             totalFreeMargin += acc.margin_free;
         }
         
-        elements.dashBalance.innerText = `${totalBalance.toFixed(2)} EUR`;
-        elements.dashEquity.innerText = `${totalEquity.toFixed(2)} EUR`;
-        elements.dashFreeMargin.innerText = `${totalFreeMargin.toFixed(2)} EUR`;
-        
-        if (allPnL >= 0) {
-            elements.dashEquity.className = "metric-val profit-text";
-        } else {
-            elements.dashEquity.className = "metric-val loss-text";
+        if (elements.dashBalance) elements.dashBalance.innerText = `${totalBalance.toFixed(2)} EUR`;
+        if (elements.dashEquity) {
+            elements.dashEquity.innerText = `${totalEquity.toFixed(2)} EUR`;
+            if (allPnL >= 0) {
+                elements.dashEquity.className = "metric-val profit-text";
+            } else {
+                elements.dashEquity.className = "metric-val loss-text";
+            }
         }
+        if (elements.dashFreeMargin) elements.dashFreeMargin.innerText = `${totalFreeMargin.toFixed(2)} EUR`;
         
         if (elements.journalBalance) elements.journalBalance.innerText = `${totalBalance.toFixed(2)} EUR`;
         if (elements.journalEquity) {
@@ -1655,7 +1666,9 @@ function renderQuickPositions(positions) {
     if (currentRenderState !== prevRenderState) {
         state.lastQuickRenderState = currentRenderState;
         const html = generatePositionsTableHTML(positions, true);
-        elements.quickPositionsContainer.innerHTML = html;
+        if (elements.quickPositionsContainer) {
+            elements.quickPositionsContainer.innerHTML = html;
+        }
         if (elements.graphPositionsContainer) {
             elements.graphPositionsContainer.innerHTML = html;
         }
