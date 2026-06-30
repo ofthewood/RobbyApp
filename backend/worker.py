@@ -70,16 +70,25 @@ def get_timezone_offset(symbol: str) -> int:
         except Exception:
             pass
 
-    tick = mt5.symbol_info_tick(symbol)
-    if tick is None:
-        return cached_offset if cached_offset is not None else 0
+    # Query active symbols to find the most recent tick
+    test_symbols = [symbol, "EURUSD", "USDJPY", "GBPUSD"]
+    max_tick_time = 0
+    
+    for ts in test_symbols:
+        mt5.symbol_select(ts, True)
+        tick = mt5.symbol_info_tick(ts)
+        if tick:
+            if tick.time > max_tick_time:
+                max_tick_time = tick.time
+                
+    if max_tick_time == 0:
+        return cached_offset if cached_offset is not None else 7200
         
     current_time = int(time.time())
-    tick_time = int(tick.time)
     
-    # If the tick is fresh (less than 2 hours old), calculate and cache the offset
-    if abs(current_time - tick_time) < 7200:
-        diff = tick_time - current_time
+    # If the tick is fresh (less than 14 hours difference from UTC), compute and cache the offset
+    if abs(max_tick_time - current_time) < 14 * 3600:
+        diff = max_tick_time - current_time
         offset = round(diff / 900) * 900
         
         # Save to cache
@@ -88,17 +97,9 @@ def get_timezone_offset(symbol: str) -> int:
                 json.dump({"offset": offset, "updated_at": current_time}, f)
         except Exception as e:
             print(f"Error saving timezone offset cache: {e}")
-            
         return offset
-    else:
-        # Market is closed or terminal is offline; use cached offset if available
-        if cached_offset is not None:
-            return cached_offset
-            
-        # Fallback if no cache exists yet (e.g. first run on a weekend)
-        diff = tick_time - current_time
-        offset = round(diff / 900) * 900
-        return offset
+        
+    return cached_offset if cached_offset is not None else 7200
 
 @app.on_event("startup")
 async def startup_event():
