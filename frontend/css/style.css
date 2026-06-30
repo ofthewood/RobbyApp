@@ -1494,7 +1494,7 @@ input, button, select, textarea {
    RESPONSIVE DESIGN (DESKTOP)
    ========================================================================== */
 @media (min-width: 768px) {
-    /* Responsive styling for testing/viewing on large screens */
+    /* Responsive styling for tablet viewport emulator */
     body {
         background-color: #0f172a; /* Slate 900 background outside container */
         overflow: auto;
@@ -1506,6 +1506,55 @@ input, button, select, textarea {
         border-radius: 20px;
         overflow: hidden;
         border: none;
+    }
+}
+
+@media (min-width: 1024px) {
+    /* PC Full Screen Desktop Experience */
+    body {
+        background-color: var(--bg-app) !important;
+        overflow: hidden !important; /* Lock viewport scroll for app look */
+    }
+    
+    .app-container {
+        max-width: 100% !important;
+        height: 100vh !important;
+        margin-top: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+    
+    /* Centered constraints for clean scalp layout */
+    .scalp-console-card {
+        max-width: 550px;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        width: 100%;
+    }
+    
+    .config-form {
+        max-width: 650px;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        width: 100%;
+    }
+    
+    /* Centered constraints for lists on Config/Positions/Scalp tabs */
+    #tab-scalp .positions-full-card,
+    #tab-scalp .quick-positions-section,
+    #tab-positions .positions-full-card,
+    #tab-config .param-card {
+        max-width: 900px;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        width: 100%;
+    }
+    
+    /* Make the footer nav items centered and balanced on wide screens */
+    .app-footer {
+        justify-content: center !important;
+        gap: 50px;
     }
 }
 
