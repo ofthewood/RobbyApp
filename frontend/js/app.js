@@ -528,6 +528,7 @@ let analysisChartInstance = null;
 let analysisCandlestickSeries = null;
 let analysisPnlSeries = null;
 let analysisConnectorSeries = null;
+let analysisMarkersPlugin = null;
 let analysisSelectedDate = null;
 let analysisSelectedTradeId = null;
 
@@ -859,6 +860,9 @@ async function loadAnalysisChartData(selectedDate) {
             if (analysisConnectorSeries) {
                 analysisConnectorSeries.setData([]);
             }
+            if (analysisMarkersPlugin) {
+                analysisMarkersPlugin.setMarkers([]);
+            }
             return;
         }
         
@@ -903,10 +907,18 @@ async function loadAnalysisChartData(selectedDate) {
         
         // Sort chronologically
         markers.sort((a, b) => a.time - b.time);
-        if (typeof analysisCandlestickSeries.setMarkers === 'function') {
-            analysisCandlestickSeries.setMarkers(markers);
+        
+        // Update markers using the v5 plugin API (createSeriesMarkers)
+        if (analysisMarkersPlugin) {
+            analysisMarkersPlugin.setMarkers(markers);
+        } else if (typeof LightweightCharts.createSeriesMarkers === 'function') {
+            analysisMarkersPlugin = LightweightCharts.createSeriesMarkers(analysisCandlestickSeries, markers);
         } else {
-            console.warn("setMarkers is not available on analysisCandlestickSeries");
+            console.warn("createSeriesMarkers is not available in LightweightCharts");
+            // Fallback for older versions if loaded
+            if (typeof analysisCandlestickSeries.setMarkers === 'function') {
+                analysisCandlestickSeries.setMarkers(markers);
+            }
         }
         
         // Plot Cumulative PnL (Equity) on the separate left scale
