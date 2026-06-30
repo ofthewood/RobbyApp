@@ -1510,7 +1510,7 @@ input, button, select, textarea {
 }
 
 @media (min-width: 1024px) {
-    /* PC Full Screen Desktop Experience - ONLY when active tab is Graph or Journal */
+    /* PC Full Screen Desktop Experience - ONLY when active tab is Journal */
     body.pc-fullscreen-active {
         background-color: var(--bg-app) !important;
         overflow: hidden !important; /* Lock viewport scroll for app look */

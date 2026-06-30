@@ -467,8 +467,8 @@ function initNavigation() {
             elements.tabContents.forEach(tab => tab.classList.remove('active'));
             document.getElementById(targetTabId).classList.add('active');
             
-            // Toggle PC Fullscreen layout for Graph and Journal tabs
-            if (targetTabId === 'tab-journal' || targetTabId === 'tab-graph') {
+            // Toggle PC Fullscreen layout for ONLY the Journal tab
+            if (targetTabId === 'tab-journal') {
                 document.body.classList.add('pc-fullscreen-active');
             } else {
                 document.body.classList.remove('pc-fullscreen-active');
@@ -501,7 +501,7 @@ function initNavigation() {
     // Check on page load if active tab is fullscreen
     const activeTab = document.querySelector('.tab-content.active');
     if (activeTab) {
-        if (activeTab.id === 'tab-journal' || activeTab.id === 'tab-graph') {
+        if (activeTab.id === 'tab-journal') {
             document.body.classList.add('pc-fullscreen-active');
         } else {
             document.body.classList.remove('pc-fullscreen-active');
