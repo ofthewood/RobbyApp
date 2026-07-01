@@ -923,6 +923,21 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
         });
         analysisTradeConnectors = [];
         
+        // Helper to find the closest candle time to attach markers
+        const findClosestCandleTime = (targetTime, candles) => {
+            if (!candles || candles.length === 0) return targetTime;
+            let closest = candles[0].time;
+            let minDiff = Math.abs(targetTime - closest);
+            for (let i = 1; i < candles.length; i++) {
+                const diff = Math.abs(targetTime - candles[i].time);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closest = candles[i].time;
+                }
+            }
+            return closest;
+        };
+
         // Plot ALL daily trades entry/exit markers and draw connection lines
         const markers = [];
         dayTrades.forEach(t => {
@@ -932,13 +947,13 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
                 !isNaN(t.open_time) && !isNaN(t.close_time) &&
                 !isNaN(t.open_price) && !isNaN(t.close_price)) {
                 
-                // Round trade times to the nearest minute to align exactly with M1 candles
-                const roundedOpenTime = Math.floor(t.open_time / 60) * 60;
-                const roundedCloseTime = Math.floor(t.close_time / 60) * 60;
+                // Find the closest actual candle times in the series to attach the markers
+                const entryMarkerTime = findClosestCandleTime(t.open_time + localOffset, bars);
+                const exitMarkerTime = findClosestCandleTime(t.close_time + localOffset, bars);
                 
                 // Entry marker
                 markers.push({
-                    time: roundedOpenTime + localOffset,
+                    time: entryMarkerTime,
                     position: t.type === 'BUY' ? 'belowBar' : 'aboveBar',
                     color: t.type === 'BUY' ? '#26a69a' : '#ef5350',
                     shape: t.type === 'BUY' ? 'arrowUp' : 'arrowDown',
@@ -947,7 +962,7 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
                 // Exit marker
                 const pipsText = `${t.pips >= 0 ? '+' : ''}${t.pips}p`;
                 markers.push({
-                    time: roundedCloseTime + localOffset,
+                    time: exitMarkerTime,
                     position: t.type === 'BUY' ? 'aboveBar' : 'belowBar',
                     color: t.net >= 0 ? '#26a69a' : '#ef5350',
                     shape: t.type === 'BUY' ? 'arrowDown' : 'arrowUp',
@@ -3659,8 +3674,8 @@ function adjustLimitPrice(deltaPoints) {
 // APP INITIALIZATION
 // ==========================================================================
 function init() {
-    console.log("App loaded - Version 114");
-    showToast("Application démarrée - Version 114", "info");
+    console.log("App loaded - Version 115");
+    showToast("Application démarrée - Version 115", "info");
     initNavigation();
     
     // Timezone selector handler for analysis chart
