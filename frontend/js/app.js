@@ -947,27 +947,33 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
                 !isNaN(t.open_time) && !isNaN(t.close_time) &&
                 !isNaN(t.open_price) && !isNaN(t.close_price)) {
                 
-                // Find the closest actual candle times in the series to attach the markers
-                const entryMarkerTime = findClosestCandleTime(t.open_time + localOffset, bars);
-                const exitMarkerTime = findClosestCandleTime(t.close_time + localOffset, bars);
+                const rawEntryTimeShifted = t.open_time + localOffset;
+                const rawExitTimeShifted = t.close_time + localOffset;
                 
-                // Entry marker
-                markers.push({
-                    time: entryMarkerTime,
-                    position: t.type === 'BUY' ? 'belowBar' : 'aboveBar',
-                    color: t.type === 'BUY' ? '#26a69a' : '#ef5350',
-                    shape: t.type === 'BUY' ? 'arrowUp' : 'arrowDown',
-                    text: `${t.type} ${t.volume.toFixed(2)}`
-                });
-                // Exit marker
-                const pipsText = `${t.pips >= 0 ? '+' : ''}${t.pips}p`;
-                markers.push({
-                    time: exitMarkerTime,
-                    position: t.type === 'BUY' ? 'aboveBar' : 'belowBar',
-                    color: t.net >= 0 ? '#26a69a' : '#ef5350',
-                    shape: t.type === 'BUY' ? 'arrowDown' : 'arrowUp',
-                    text: `Exit (${pipsText})`
-                });
+                // Only push Entry marker if it falls within the loaded candle range
+                if (bars.length > 0 && rawEntryTimeShifted >= bars[0].time && rawEntryTimeShifted <= bars[bars.length - 1].time) {
+                    const entryMarkerTime = findClosestCandleTime(rawEntryTimeShifted, bars);
+                    markers.push({
+                        time: entryMarkerTime,
+                        position: t.type === 'BUY' ? 'belowBar' : 'aboveBar',
+                        color: t.type === 'BUY' ? '#26a69a' : '#ef5350',
+                        shape: t.type === 'BUY' ? 'arrowUp' : 'arrowDown',
+                        text: `${t.type} ${t.volume.toFixed(2)}`
+                    });
+                }
+                
+                // Only push Exit marker if it falls within the loaded candle range
+                if (bars.length > 0 && rawExitTimeShifted >= bars[0].time && rawExitTimeShifted <= bars[bars.length - 1].time) {
+                    const exitMarkerTime = findClosestCandleTime(rawExitTimeShifted, bars);
+                    const pipsText = `${t.pips >= 0 ? '+' : ''}${t.pips}p`;
+                    markers.push({
+                        time: exitMarkerTime,
+                        position: t.type === 'BUY' ? 'aboveBar' : 'belowBar',
+                        color: t.net >= 0 ? '#26a69a' : '#ef5350',
+                        shape: t.type === 'BUY' ? 'arrowDown' : 'arrowUp',
+                        text: `Exit (${pipsText})`
+                    });
+                }
                 
                 // Connect entry and exit with a faint dashed line
                 const connector = analysisChartInstance.addSeries(LightweightCharts.LineSeries, {
@@ -3674,8 +3680,8 @@ function adjustLimitPrice(deltaPoints) {
 // APP INITIALIZATION
 // ==========================================================================
 function init() {
-    console.log("App loaded - Version 115");
-    showToast("Application démarrée - Version 115", "info");
+    console.log("App loaded - Version 116");
+    showToast("Application démarrée - Version 116", "info");
     initNavigation();
     
     // Timezone selector handler for analysis chart
