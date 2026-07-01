@@ -757,10 +757,10 @@ function initAnalysisChart() {
         crosshair: {
             mode: 1, // CrosshairMode.Normal
             vertLine: {
-                labelVisible: false,
+                labelVisible: true,
             },
             horzLine: {
-                labelVisible: false,
+                labelVisible: true,
             }
         }
     });
@@ -3595,8 +3595,8 @@ function adjustLimitPrice(deltaPoints) {
 // APP INITIALIZATION
 // ==========================================================================
 function init() {
-    console.log("App loaded - Version 108");
-    showToast("Application démarrée - Version 108", "info");
+    console.log("App loaded - Version 109");
+    showToast("Application démarrée - Version 109", "info");
     initNavigation();
     initChartResizer();
     initCollapsibleSections();
