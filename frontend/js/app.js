@@ -191,12 +191,12 @@ function showToast(message, type = 'info') {
 // ==========================================================================
 // JOURNAL & STATS LOGIC
 // ==========================================================================
-async function fetchHistoryData() {
+async function fetchHistoryData(isAutoRefresh = false) {
     try {
         const response = await fetch('/api/history');
         if (!response.ok) throw new Error("History API returned error");
         const data = await response.json();
-        renderHistoryTab(data);
+        renderHistoryTab(data, isAutoRefresh);
     } catch (err) {
         console.error("Error fetching history data:", err);
     }
@@ -211,7 +211,7 @@ function formatDuration(seconds) {
     return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
 }
 
-function renderHistoryTab(data) {
+function renderHistoryTab(data, isAutoRefresh = false) {
     state.lastHistoryData = data;
     const trades = data.trades || [];
     const stats = data.stats || [];
@@ -366,7 +366,7 @@ function renderHistoryTab(data) {
         } else {
             // Reload current selected day's chart to keep it fresh
             setTimeout(() => {
-                loadAnalysisChartData(analysisSelectedDate);
+                loadAnalysisChartData(analysisSelectedDate, !isAutoRefresh);
                 if (analysisSelectedTradeId) {
                     inspectTrade(analysisSelectedTradeId);
                 }
@@ -795,9 +795,15 @@ function initAnalysisChart() {
     });
 }
 
-async function loadAnalysisChartData(selectedDate) {
+async function loadAnalysisChartData(selectedDate, forceFit = true) {
     if (!analysisChartInstance) initAnalysisChart();
     if (!analysisChartInstance) return;
+    
+    // Capture current zoom/pan logical range if not forcing fit
+    let logicalRange = null;
+    if (!forceFit) {
+        logicalRange = analysisChartInstance.timeScale().getVisibleLogicalRange();
+    }
     
     // Auto-resize analysis chart to container size if container size has become available
     const container = document.getElementById('analysis_chart');
@@ -958,8 +964,12 @@ async function loadAnalysisChartData(selectedDate) {
         }
         analysisPnlSeries.setData(pnlPoints);
         
-        // Fit content
-        analysisChartInstance.timeScale().fitContent();
+        // Fit content or restore previously visible logical range
+        if (forceFit) {
+            analysisChartInstance.timeScale().fitContent();
+        } else if (logicalRange) {
+            analysisChartInstance.timeScale().setVisibleLogicalRange(logicalRange);
+        }
         
     } catch (err) {
         console.error("Error loading analysis chart data:", err);
@@ -3901,9 +3911,9 @@ function init() {
     setInterval(() => {
         const tab = document.getElementById('tab-journal');
         if (tab && tab.classList.contains('active')) {
-            fetchHistoryData();
+            fetchHistoryData(true);
         }
-    }, 5000); // Update history every 5s if active
+    }, 10000); // Update history every 10s if active
 }
 
 // Start app on DOM Loaded
