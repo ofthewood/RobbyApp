@@ -813,6 +813,8 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
         logicalRange = analysisChartInstance.timeScale().getVisibleLogicalRange();
     }
     
+    const localOffset = -new Date().getTimezoneOffset() * 60;
+    
     // Auto-resize analysis chart to container size if container size has become available
     const container = document.getElementById('analysis_chart');
     if (container) {
@@ -881,7 +883,7 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
         const bars = [];
         for (let i = 0; i < data.t.length; i++) {
             bars.push({
-                time: data.t[i],
+                time: data.t[i] + localOffset,
                 open: data.o[i],
                 high: data.h[i],
                 low: data.l[i],
@@ -900,7 +902,7 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
         dayTrades.forEach(t => {
             // Entry marker
             markers.push({
-                time: t.open_time,
+                time: t.open_time + localOffset,
                 position: t.type === 'BUY' ? 'belowBar' : 'aboveBar',
                 color: t.type === 'BUY' ? '#26a69a' : '#ef5350',
                 shape: t.type === 'BUY' ? 'arrowUp' : 'arrowDown',
@@ -909,7 +911,7 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
             // Exit marker
             const pipsText = `${t.pips >= 0 ? '+' : ''}${t.pips}p`;
             markers.push({
-                time: t.close_time,
+                time: t.close_time + localOffset,
                 position: t.type === 'BUY' ? 'aboveBar' : 'belowBar',
                 color: t.net >= 0 ? '#26a69a' : '#ef5350',
                 shape: t.type === 'BUY' ? 'arrowDown' : 'arrowUp',
@@ -941,7 +943,7 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
         if (chronologicalTrades.length > 0) {
             // Set 0 baseline starting point
             pnlPoints.push({
-                time: chronologicalTrades[0].open_time - 60,
+                time: chronologicalTrades[0].open_time + localOffset - 60,
                 value: 0
             });
             
@@ -956,7 +958,7 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
                 lastTimestamp = tTime;
                 
                 pnlPoints.push({
-                    time: tTime,
+                    time: tTime + localOffset,
                     value: cumulativeVal
                 });
             });
@@ -965,7 +967,7 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
             const lastCandleTime = data.t[data.t.length - 1];
             if (lastCandleTime > lastTimestamp) {
                 pnlPoints.push({
-                    time: lastCandleTime,
+                    time: lastCandleTime + localOffset,
                     value: cumulativeVal
                 });
             }
@@ -1017,16 +1019,18 @@ function inspectTrade(tradeId) {
         });
     }
     
+    const localOffset = -new Date().getTimezoneOffset() * 60;
+    
     analysisConnectorSeries.setData([
-        { time: trade.open_time, value: trade.open_price },
-        { time: trade.close_time, value: trade.close_price }
+        { time: trade.open_time + localOffset, value: trade.open_price },
+        { time: trade.close_time + localOffset, value: trade.close_price }
     ]);
     
     // Zoom/Focus timescale to trade span with 3 minutes margin
     const marginSecs = 180;
     analysisChartInstance.timeScale().setVisibleRange({
-        from: trade.open_time - marginSecs,
-        to: trade.close_time + marginSecs
+        from: trade.open_time + localOffset - marginSecs,
+        to: trade.close_time + localOffset + marginSecs
     });
 }
 
@@ -3595,8 +3599,8 @@ function adjustLimitPrice(deltaPoints) {
 // APP INITIALIZATION
 // ==========================================================================
 function init() {
-    console.log("App loaded - Version 109");
-    showToast("Application démarrée - Version 109", "info");
+    console.log("App loaded - Version 110");
+    showToast("Application démarrée - Version 110", "info");
     initNavigation();
     initChartResizer();
     initCollapsibleSections();
