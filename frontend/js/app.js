@@ -813,7 +813,18 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
         logicalRange = analysisChartInstance.timeScale().getVisibleLogicalRange();
     }
     
-    const localOffset = -new Date().getTimezoneOffset() * 60;
+    // Retrieve selected timezone offset
+    let localOffset = 0;
+    const selectTz = document.getElementById('select-analysis-timezone');
+    const storedTz = localStorage.getItem('analysis_timezone_val') || 'auto';
+    if (selectTz) {
+        selectTz.value = storedTz;
+    }
+    if (storedTz === 'auto') {
+        localOffset = -new Date().getTimezoneOffset() * 60;
+    } else {
+        localOffset = parseInt(storedTz);
+    }
     
     // Auto-resize analysis chart to container size if container size has become available
     const container = document.getElementById('analysis_chart');
@@ -1019,7 +1030,13 @@ function inspectTrade(tradeId) {
         });
     }
     
-    const localOffset = -new Date().getTimezoneOffset() * 60;
+    let localOffset = 0;
+    const storedTz = localStorage.getItem('analysis_timezone_val') || 'auto';
+    if (storedTz === 'auto') {
+        localOffset = -new Date().getTimezoneOffset() * 60;
+    } else {
+        localOffset = parseInt(storedTz);
+    }
     
     analysisConnectorSeries.setData([
         { time: trade.open_time + localOffset, value: trade.open_price },
@@ -3599,9 +3616,23 @@ function adjustLimitPrice(deltaPoints) {
 // APP INITIALIZATION
 // ==========================================================================
 function init() {
-    console.log("App loaded - Version 110");
-    showToast("Application démarrée - Version 110", "info");
+    console.log("App loaded - Version 111");
+    showToast("Application démarrée - Version 111", "info");
     initNavigation();
+    
+    // Timezone selector handler for analysis chart
+    const selectTz = document.getElementById('select-analysis-timezone');
+    if (selectTz) {
+        const storedTz = localStorage.getItem('analysis_timezone_val') || 'auto';
+        selectTz.value = storedTz;
+        selectTz.addEventListener('change', () => {
+            localStorage.setItem('analysis_timezone_val', selectTz.value);
+            if (analysisSelectedDate) {
+                loadAnalysisChartData(analysisSelectedDate, false);
+            }
+        });
+    }
+    
     initChartResizer();
     initCollapsibleSections();
     
