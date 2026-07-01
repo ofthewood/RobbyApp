@@ -712,6 +712,17 @@ function initAnalysisChart() {
     analysisChartInstance = LightweightCharts.createChart(container, {
         width: w,
         height: h,
+        handleScale: {
+            axisDoubleClickReset: false, // Prevents double click from resetting zoom/scale
+            mouseWheel: true,
+            pinch: true,
+        },
+        handleScroll: {
+            mouseWheel: false, // Prevents mouse wheel inertia from scrolling the chart unexpectedly
+            pressedMouseMove: true,
+            horzTouchDrag: true,
+            vertTouchDrag: true,
+        },
         layout: {
             background: { type: 'solid', color: 'transparent' },
             textColor: '#64748b',
