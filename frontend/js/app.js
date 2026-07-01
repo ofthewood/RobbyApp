@@ -3711,8 +3711,8 @@ function adjustLimitPrice(deltaPoints) {
 // APP INITIALIZATION
 // ==========================================================================
 function init() {
-    console.log("App loaded - Version 119");
-    showToast("Application démarrée - Version 119", "info");
+    console.log("App loaded - Version 120");
+    showToast("Application démarrée - Version 120", "info");
     initNavigation();
     
     // Timezone selector handler for analysis chart

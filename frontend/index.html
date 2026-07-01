@@ -156,9 +156,9 @@
                                     <span id="analysis-active-date" style="font-weight: 500; color: var(--text-muted); font-size: 11px;">(Sélectionnez un jour)</span>
                                 </h3>
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <label style="font-size: 10px; display: flex; align-items: center; gap: 4px; color: var(--text-secondary); cursor: pointer; user-select: none; margin: 0;">
-                                        <input type="checkbox" id="chk-hide-small-trades" style="cursor: pointer; margin: 0;">
-                                        Masquer -10/+10 pips
+                                    <label style="font-size: 10px; display: flex; align-items: center; gap: 6px; color: #f8fafc; cursor: pointer; user-select: none; margin: 0; background: rgba(30, 41, 59, 0.7); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color);">
+                                        <input type="checkbox" id="chk-hide-small-trades" style="cursor: pointer; margin: 0; accent-color: var(--primary-color);">
+                                        Masquer &le; 10 pips
                                     </label>
                                     <select id="select-analysis-timezone" style="font-size: 10px; padding: 4px 8px; border-radius: 4px; background: rgba(30, 41, 59, 0.7); color: var(--text-primary); border: 1px solid var(--border-color); cursor: pointer;">
                                         <option value="auto">Fuseau: Auto (Détecté)</option>
@@ -573,6 +573,6 @@
     <script src="/static/js/lightweight-charts.js"></script>
     
     <!-- Application Script -->
-    <script src="/static/js/app.js?v=119"></script>
+    <script src="/static/js/app.js?v=120"></script>
 </body>
 </html>

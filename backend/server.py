@@ -387,7 +387,11 @@ app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 async def get_index():
     index_path = os.path.join(frontend_dir, "index.html")
     if os.path.exists(index_path):
-        return FileResponse(index_path)
+        response = FileResponse(index_path)
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
     return {"message": "Frontend index.html not found. Place it in frontend/index.html"}
 
 # --- API ENDPOINTS ---
