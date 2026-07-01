@@ -536,6 +536,7 @@ let analysisChartInstance = null;
 let analysisCandlestickSeries = null;
 let analysisPnlSeries = null;
 let analysisConnectorSeries = null;
+let analysisTradeConnectors = [];
 let analysisMarkersPlugin = null;
 let analysisSelectedDate = null;
 let analysisSelectedTradeId = null;
@@ -885,6 +886,12 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
             if (analysisConnectorSeries) {
                 analysisConnectorSeries.setData([]);
             }
+            analysisTradeConnectors.forEach(s => {
+                try {
+                    analysisChartInstance.removeSeries(s);
+                } catch (e) {}
+            });
+            analysisTradeConnectors = [];
             if (analysisMarkersPlugin) {
                 analysisMarkersPlugin.setMarkers([]);
             }
@@ -908,7 +915,15 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
             analysisConnectorSeries.setData([]);
         }
         
-        // Plot ALL daily trades entry/exit markers
+        // Remove all old trade connector series
+        analysisTradeConnectors.forEach(s => {
+            try {
+                analysisChartInstance.removeSeries(s);
+            } catch (e) {}
+        });
+        analysisTradeConnectors = [];
+        
+        // Plot ALL daily trades entry/exit markers and draw connection lines
         const markers = [];
         dayTrades.forEach(t => {
             // Entry marker
@@ -928,6 +943,21 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
                 shape: t.type === 'BUY' ? 'arrowDown' : 'arrowUp',
                 text: `Exit (${pipsText})`
             });
+            
+            // Connect entry and exit with a faint dashed line
+            const connector = analysisChartInstance.addSeries(LightweightCharts.LineSeries, {
+                color: t.net >= 0 ? 'rgba(38, 166, 154, 0.35)' : 'rgba(239, 83, 80, 0.35)',
+                lineWidth: 1.5,
+                lineStyle: 2, // Dashed
+                lastValueVisible: false,
+                priceLineVisible: false,
+                crosshairMarkerVisible: false,
+            });
+            connector.setData([
+                { time: t.open_time + localOffset, value: t.open_price },
+                { time: t.close_time + localOffset, value: t.close_price }
+            ]);
+            analysisTradeConnectors.push(connector);
         });
         
         // Sort chronologically
@@ -1015,18 +1045,20 @@ function inspectTrade(tradeId) {
         }
     });
     
-    // Draw dotted connection line between open and close points
+    // Draw solid connection line between open and close points for the inspected trade
     if (!analysisConnectorSeries) {
         analysisConnectorSeries = analysisChartInstance.addSeries(LightweightCharts.LineSeries, {
             color: trade.net >= 0 ? '#26a69a' : '#ef5350',
-            lineWidth: 2,
-            lineStyle: 2, // Dashed
+            lineWidth: 3,
+            lineStyle: 0, // Solid
             lastValueVisible: false,
             priceLineVisible: false
         });
     } else {
         analysisConnectorSeries.applyOptions({
-            color: trade.net >= 0 ? '#26a69a' : '#ef5350'
+            color: trade.net >= 0 ? '#26a69a' : '#ef5350',
+            lineWidth: 3,
+            lineStyle: 0 // Solid
         });
     }
     
@@ -3616,8 +3648,8 @@ function adjustLimitPrice(deltaPoints) {
 // APP INITIALIZATION
 // ==========================================================================
 function init() {
-    console.log("App loaded - Version 111");
-    showToast("Application démarrée - Version 111", "info");
+    console.log("App loaded - Version 112");
+    showToast("Application démarrée - Version 112", "info");
     initNavigation();
     
     // Timezone selector handler for analysis chart
