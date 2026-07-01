@@ -370,10 +370,10 @@ function renderHistoryTab(data, isAutoRefresh = false, hasChanged = true) {
                 }
             }, 100);
         } else {
-            // Reload current selected day's chart to keep it fresh ONLY if not an auto-refresh OR if data actually changed
-            if (!isAutoRefresh || hasChanged) {
+            // Reload current selected day's chart to keep it fresh ONLY if not an auto-refresh
+            if (!isAutoRefresh) {
                 setTimeout(() => {
-                    loadAnalysisChartData(analysisSelectedDate, !isAutoRefresh);
+                    loadAnalysisChartData(analysisSelectedDate, true);
                     if (analysisSelectedTradeId) {
                         inspectTrade(analysisSelectedTradeId);
                     }
