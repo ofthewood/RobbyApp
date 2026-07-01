@@ -975,7 +975,7 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
                     });
                 }
                 
-                // Connect entry and exit with a faint dashed line
+                // Connect entry and exit with a faint dashed line (aligned to nearest minute)
                 const connector = analysisChartInstance.addSeries(LightweightCharts.LineSeries, {
                     color: t.net >= 0 ? 'rgba(38, 166, 154, 0.35)' : 'rgba(239, 83, 80, 0.35)',
                     lineWidth: 1.5,
@@ -984,9 +984,13 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
                     priceLineVisible: false,
                     crosshairMarkerVisible: false,
                 });
+                
+                const openMinute = Math.floor(t.open_time / 60) * 60;
+                const closeMinute = Math.floor(t.close_time / 60) * 60;
+                
                 connector.setData([
-                    { time: t.open_time + localOffset, value: t.open_price },
-                    { time: t.close_time + localOffset, value: t.close_price }
+                    { time: openMinute + localOffset, value: t.open_price },
+                    { time: closeMinute + localOffset, value: t.close_price }
                 ]);
                 analysisTradeConnectors.push(connector);
             }
@@ -1014,19 +1018,21 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
         const chronologicalTrades = [...dayTrades].sort((a, b) => a.close_time - b.close_time);
         
         if (chronologicalTrades.length > 0) {
-            // Set 0 baseline starting point
+            // Set 0 baseline starting point (rounded to nearest minute)
+            const firstOpenMinute = Math.floor(chronologicalTrades[0].open_time / 60) * 60;
             pnlPoints.push({
-                time: chronologicalTrades[0].open_time + localOffset - 60,
+                time: firstOpenMinute + localOffset - 60,
                 value: 0
             });
             
             let lastTimestamp = 0;
             chronologicalTrades.forEach(t => {
                 cumulativeVal += state.journalUnit === 'EUR' ? t.net : t.pips;
-                let tTime = t.close_time;
-                // Offset duplicate timestamps
+                // Round close time to nearest minute
+                let tTime = Math.floor(t.close_time / 60) * 60;
+                // Offset duplicate timestamps by 60 seconds (1 minute) to stay on candle timeline grid
                 if (tTime <= lastTimestamp) {
-                    tTime = lastTimestamp + 1;
+                    tTime = lastTimestamp + 60;
                 }
                 lastTimestamp = tTime;
                 
@@ -1102,16 +1108,19 @@ function inspectTrade(tradeId) {
         localOffset = parseInt(storedTz);
     }
     
+    const openMinute = Math.floor(trade.open_time / 60) * 60;
+    const closeMinute = Math.floor(trade.close_time / 60) * 60;
+    
     analysisConnectorSeries.setData([
-        { time: trade.open_time + localOffset, value: trade.open_price },
-        { time: trade.close_time + localOffset, value: trade.close_price }
+        { time: openMinute + localOffset, value: trade.open_price },
+        { time: closeMinute + localOffset, value: trade.close_price }
     ]);
     
     // Zoom/Focus timescale to trade span with 3 minutes margin
     const marginSecs = 180;
     analysisChartInstance.timeScale().setVisibleRange({
-        from: trade.open_time + localOffset - marginSecs,
-        to: trade.close_time + localOffset + marginSecs
+        from: openMinute + localOffset - marginSecs,
+        to: closeMinute + localOffset + marginSecs
     });
 }
 
@@ -3680,8 +3689,8 @@ function adjustLimitPrice(deltaPoints) {
 // APP INITIALIZATION
 // ==========================================================================
 function init() {
-    console.log("App loaded - Version 116");
-    showToast("Application démarrée - Version 116", "info");
+    console.log("App loaded - Version 117");
+    showToast("Application démarrée - Version 117", "info");
     initNavigation();
     
     // Timezone selector handler for analysis chart
