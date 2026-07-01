@@ -926,38 +926,45 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
         // Plot ALL daily trades entry/exit markers and draw connection lines
         const markers = [];
         dayTrades.forEach(t => {
-            // Entry marker
-            markers.push({
-                time: t.open_time + localOffset,
-                position: t.type === 'BUY' ? 'belowBar' : 'aboveBar',
-                color: t.type === 'BUY' ? '#26a69a' : '#ef5350',
-                shape: t.type === 'BUY' ? 'arrowUp' : 'arrowDown',
-                text: `${t.type} ${t.volume.toFixed(2)}`
-            });
-            // Exit marker
-            const pipsText = `${t.pips >= 0 ? '+' : ''}${t.pips}p`;
-            markers.push({
-                time: t.close_time + localOffset,
-                position: t.type === 'BUY' ? 'aboveBar' : 'belowBar',
-                color: t.net >= 0 ? '#26a69a' : '#ef5350',
-                shape: t.type === 'BUY' ? 'arrowDown' : 'arrowUp',
-                text: `Exit (${pipsText})`
-            });
-            
-            // Connect entry and exit with a faint dashed line
-            const connector = analysisChartInstance.addSeries(LightweightCharts.LineSeries, {
-                color: t.net >= 0 ? 'rgba(38, 166, 154, 0.35)' : 'rgba(239, 83, 80, 0.35)',
-                lineWidth: 1.5,
-                lineStyle: 2, // Dashed
-                lastValueVisible: false,
-                priceLineVisible: false,
-                crosshairMarkerVisible: false,
-            });
-            connector.setData([
-                { time: t.open_time + localOffset, value: t.open_price },
-                { time: t.close_time + localOffset, value: t.close_price }
-            ]);
-            analysisTradeConnectors.push(connector);
+            // Safety check: ensure all open/close times and prices are valid finite numbers
+            if (typeof t.open_time === 'number' && typeof t.close_time === 'number' &&
+                typeof t.open_price === 'number' && typeof t.close_price === 'number' &&
+                !isNaN(t.open_time) && !isNaN(t.close_time) &&
+                !isNaN(t.open_price) && !isNaN(t.close_price)) {
+                
+                // Entry marker
+                markers.push({
+                    time: t.open_time + localOffset,
+                    position: t.type === 'BUY' ? 'belowBar' : 'aboveBar',
+                    color: t.type === 'BUY' ? '#26a69a' : '#ef5350',
+                    shape: t.type === 'BUY' ? 'arrowUp' : 'arrowDown',
+                    text: `${t.type} ${t.volume.toFixed(2)}`
+                });
+                // Exit marker
+                const pipsText = `${t.pips >= 0 ? '+' : ''}${t.pips}p`;
+                markers.push({
+                    time: t.close_time + localOffset,
+                    position: t.type === 'BUY' ? 'aboveBar' : 'belowBar',
+                    color: t.net >= 0 ? '#26a69a' : '#ef5350',
+                    shape: t.type === 'BUY' ? 'arrowDown' : 'arrowUp',
+                    text: `Exit (${pipsText})`
+                });
+                
+                // Connect entry and exit with a faint dashed line
+                const connector = analysisChartInstance.addSeries(LightweightCharts.LineSeries, {
+                    color: t.net >= 0 ? 'rgba(38, 166, 154, 0.35)' : 'rgba(239, 83, 80, 0.35)',
+                    lineWidth: 1.5,
+                    lineStyle: 2, // Dashed
+                    lastValueVisible: false,
+                    priceLineVisible: false,
+                    crosshairMarkerVisible: false,
+                });
+                connector.setData([
+                    { time: t.open_time + localOffset, value: t.open_price },
+                    { time: t.close_time + localOffset, value: t.close_price }
+                ]);
+                analysisTradeConnectors.push(connector);
+            }
         });
         
         // Sort chronologically
@@ -3648,8 +3655,8 @@ function adjustLimitPrice(deltaPoints) {
 // APP INITIALIZATION
 // ==========================================================================
 function init() {
-    console.log("App loaded - Version 112");
-    showToast("Application démarrée - Version 112", "info");
+    console.log("App loaded - Version 113");
+    showToast("Application démarrée - Version 113", "info");
     initNavigation();
     
     // Timezone selector handler for analysis chart
