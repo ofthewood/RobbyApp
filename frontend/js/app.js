@@ -827,6 +827,9 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
         localOffset = parseInt(storedTz);
     }
     
+    const chkHideSmall = document.getElementById('chk-hide-small-trades');
+    const hideSmall = chkHideSmall ? chkHideSmall.checked : (localStorage.getItem('analysis_hide_small_trades') === 'true');
+    
     // Auto-resize analysis chart to container size if container size has become available
     const container = document.getElementById('analysis_chart');
     if (container) {
@@ -946,6 +949,11 @@ async function loadAnalysisChartData(selectedDate, forceFit = true) {
                 typeof t.open_price === 'number' && typeof t.close_price === 'number' &&
                 !isNaN(t.open_time) && !isNaN(t.close_time) &&
                 !isNaN(t.open_price) && !isNaN(t.close_price)) {
+                
+                // Skip markers and connectors for small trades if the filter option is enabled
+                if (hideSmall && Math.abs(t.pips) <= 10) {
+                    return;
+                }
                 
                 const rawEntryTimeShifted = t.open_time + localOffset;
                 const rawExitTimeShifted = t.close_time + localOffset;
@@ -3321,17 +3329,31 @@ async function loadConfigFromServer() {
         elements.cfgPathLong.value = config.terminal_path_long;
         elements.cfgPathShort.value = config.terminal_path_short;
         
-        // Update placeholders on Scalp panel if present
+        // Update placeholders on Scalp or Graph panels
         if (elements.lotInput) elements.lotInput.value = config.default_lot;
+        if (elements.graphLotInput) elements.graphLotInput.value = config.default_lot;
+        
         if (elements.slInput) elements.slInput.value = config.default_sl_points;
+        if (elements.graphSlInput) elements.graphSlInput.value = config.default_sl_points;
+        
         if (elements.tpInput) elements.tpInput.value = config.default_tp_points;
+        if (elements.graphTpInput) elements.graphTpInput.value = config.default_tp_points;
+        
         if (elements.autoBeInput) elements.autoBeInput.value = config.auto_be_pips || 0;
+        if (elements.graphAutoBeInput) elements.graphAutoBeInput.value = config.auto_be_pips || 0;
         
         // Sync preset active states
         syncPresets('lot-presets', config.default_lot);
+        syncPresets('graph-lot-presets', config.default_lot);
+        
         syncPresets('sl-presets', config.default_sl_points);
+        syncPresets('graph-sl-presets', config.default_sl_points);
+        
         syncPresets('tp-presets', config.default_tp_points);
+        syncPresets('graph-tp-presets', config.default_tp_points);
+        
         syncPresets('auto-be-presets', config.auto_be_pips || 0);
+        syncPresets('graph-auto-be-presets', config.auto_be_pips || 0);
         
         // Start streaming for the loaded symbol
         startQuoteStream();
@@ -3459,10 +3481,10 @@ function toggleGraphParamPanel(type) {
 
 // Synchronize displayed values in the parameter bar with the actual input fields
 function syncScalpParamDisplays() {
-    const lotInput = document.getElementById('input-lot');
-    const autoBeInput = document.getElementById('input-auto-be');
-    const slInput = document.getElementById('input-sl-points');
-    const tpInput = document.getElementById('input-tp-points');
+    const lotInput = document.getElementById('input-lot') || document.getElementById('graph-input-lot');
+    const autoBeInput = document.getElementById('input-auto-be') || document.getElementById('graph-input-auto-be');
+    const slInput = document.getElementById('input-sl-points') || document.getElementById('graph-input-sl-points');
+    const tpInput = document.getElementById('input-tp-points') || document.getElementById('graph-input-tp-points');
     
     const displayLot = document.getElementById('val-display-lot');
     const displayBe = document.getElementById('val-display-be');
@@ -3474,28 +3496,28 @@ function syncScalpParamDisplays() {
     const graphDisplaySl = document.getElementById('graph-val-display-sl');
     const graphDisplayTp = document.getElementById('graph-val-display-tp');
     
-    if (lotInput && displayLot) {
+    if (lotInput) {
         const val = parseFloat(lotInput.value) || 0;
         let lotText = val.toFixed(2);
         if (val === 0.75 && state.isSplitActive) {
             lotText = state.splitScenario === 1 ? "0.75 Sc1" : "0.75 Split";
         }
-        displayLot.innerText = lotText;
+        if (displayLot) displayLot.innerText = lotText;
         if (graphDisplayLot) graphDisplayLot.innerText = lotText;
     }
-    if (autoBeInput && displayBe) {
+    if (autoBeInput) {
         const val = parseInt(autoBeInput.value) || 0;
-        displayBe.innerText = val > 0 ? val : 'Off';
+        if (displayBe) displayBe.innerText = val > 0 ? val : 'Off';
         if (graphDisplayBe) graphDisplayBe.innerText = val > 0 ? val : 'Off';
     }
-    if (slInput && displaySl) {
+    if (slInput) {
         const val = parseFloat(slInput.value) || 0;
-        displaySl.innerText = val > 0 ? `-${val.toFixed(0)}` : 'None';
+        if (displaySl) displaySl.innerText = val > 0 ? `-${val.toFixed(0)}` : 'None';
         if (graphDisplaySl) graphDisplaySl.innerText = val > 0 ? `-${val.toFixed(0)}` : 'None';
     }
-    if (tpInput && displayTp) {
+    if (tpInput) {
         const val = parseFloat(tpInput.value) || 0;
-        displayTp.innerText = val > 0 ? val.toFixed(0) : 'None';
+        if (displayTp) displayTp.innerText = val > 0 ? val.toFixed(0) : 'None';
         if (graphDisplayTp) graphDisplayTp.innerText = val > 0 ? val.toFixed(0) : 'None';
     }
     
@@ -3689,8 +3711,8 @@ function adjustLimitPrice(deltaPoints) {
 // APP INITIALIZATION
 // ==========================================================================
 function init() {
-    console.log("App loaded - Version 117");
-    showToast("Application démarrée - Version 117", "info");
+    console.log("App loaded - Version 119");
+    showToast("Application démarrée - Version 119", "info");
     initNavigation();
     
     // Timezone selector handler for analysis chart
@@ -3700,6 +3722,19 @@ function init() {
         selectTz.value = storedTz;
         selectTz.addEventListener('change', () => {
             localStorage.setItem('analysis_timezone_val', selectTz.value);
+            if (analysisSelectedDate) {
+                loadAnalysisChartData(analysisSelectedDate, false);
+            }
+        });
+    }
+    
+    // Filter checkbox for small pips trades on analysis chart
+    const chkHideSmall = document.getElementById('chk-hide-small-trades');
+    if (chkHideSmall) {
+        const storedHideSmall = localStorage.getItem('analysis_hide_small_trades') === 'true';
+        chkHideSmall.checked = storedHideSmall;
+        chkHideSmall.addEventListener('change', () => {
+            localStorage.setItem('analysis_hide_small_trades', chkHideSmall.checked ? 'true' : 'false');
             if (analysisSelectedDate) {
                 loadAnalysisChartData(analysisSelectedDate, false);
             }
@@ -3859,22 +3894,24 @@ function init() {
     ];
 
     syncFields.forEach(field => {
-        if (field.scalp && field.graph) {
+        if (field.scalp) {
             field.scalp.addEventListener('input', (e) => {
                 const val = e.target.value;
-                if (field.graph.value !== val) {
+                if (field.graph && field.graph.value !== val) {
                     field.graph.value = val;
                     syncPresets(field.presetGraph, field.isFloat ? parseFloat(val) : parseInt(val));
-                    syncScalpParamDisplays();
                 }
+                syncScalpParamDisplays();
             });
+        }
+        if (field.graph) {
             field.graph.addEventListener('input', (e) => {
                 const val = e.target.value;
-                if (field.scalp.value !== val) {
+                if (field.scalp && field.scalp.value !== val) {
                     field.scalp.value = val;
                     syncPresets(field.presetScalp, field.isFloat ? parseFloat(val) : parseInt(val));
-                    syncScalpParamDisplays();
                 }
+                syncScalpParamDisplays();
             });
         }
     });
