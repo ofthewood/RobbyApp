@@ -196,7 +196,13 @@ async function fetchHistoryData(isAutoRefresh = false) {
         const response = await fetch('/api/history');
         if (!response.ok) throw new Error("History API returned error");
         const data = await response.json();
-        renderHistoryTab(data, isAutoRefresh);
+        
+        // Detect if trades data has actually changed to avoid redundant chart reloads
+        const oldTrades = state.lastHistoryData && state.lastHistoryData.trades ? state.lastHistoryData.trades : [];
+        const newTrades = data && data.trades ? data.trades : [];
+        const hasChanged = JSON.stringify(oldTrades) !== JSON.stringify(newTrades);
+        
+        renderHistoryTab(data, isAutoRefresh, hasChanged);
     } catch (err) {
         console.error("Error fetching history data:", err);
     }
@@ -211,7 +217,7 @@ function formatDuration(seconds) {
     return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
 }
 
-function renderHistoryTab(data, isAutoRefresh = false) {
+function renderHistoryTab(data, isAutoRefresh = false, hasChanged = true) {
     state.lastHistoryData = data;
     const trades = data.trades || [];
     const stats = data.stats || [];
@@ -364,13 +370,15 @@ function renderHistoryTab(data, isAutoRefresh = false) {
                 }
             }, 100);
         } else {
-            // Reload current selected day's chart to keep it fresh
-            setTimeout(() => {
-                loadAnalysisChartData(analysisSelectedDate, !isAutoRefresh);
-                if (analysisSelectedTradeId) {
-                    inspectTrade(analysisSelectedTradeId);
-                }
-            }, 100);
+            // Reload current selected day's chart to keep it fresh ONLY if not an auto-refresh OR if data actually changed
+            if (!isAutoRefresh || hasChanged) {
+                setTimeout(() => {
+                    loadAnalysisChartData(analysisSelectedDate, !isAutoRefresh);
+                    if (analysisSelectedTradeId) {
+                        inspectTrade(analysisSelectedTradeId);
+                    }
+                }, 100);
+            }
         }
     }
 }
