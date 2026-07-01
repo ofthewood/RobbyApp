@@ -3595,6 +3595,8 @@ function adjustLimitPrice(deltaPoints) {
 // APP INITIALIZATION
 // ==========================================================================
 function init() {
+    console.log("App loaded - Version 108");
+    showToast("Application démarrée - Version 108", "info");
     initNavigation();
     initChartResizer();
     initCollapsibleSections();

@@ -155,23 +155,24 @@
                                     Analyse Graphique
                                     <span id="analysis-active-date" style="font-weight: 500; color: var(--text-muted); font-size: 11px;">(Sélectionnez un jour)</span>
                                 </h3>
-                                <div style="display: flex; align-items: center; gap: 6px;">
-                                    <button class="btn btn-outline-secondary btn-sm" id="btn-zoom-in-analysis" title="Zoomer" style="font-size: 10px; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center;">
-                                        <i class="fa-solid fa-magnifying-glass-plus"></i>
-                                    </button>
-                                    <button class="btn btn-outline-secondary btn-sm" id="btn-zoom-out-analysis" title="Dézoomer" style="font-size: 10px; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center;">
-                                        <i class="fa-solid fa-magnifying-glass-minus"></i>
-                                    </button>
-                                    <button class="btn btn-outline-secondary btn-sm" id="btn-reset-analysis" title="Ajuster l'échelle" style="font-size: 10px; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center;">
-                                        <i class="fa-solid fa-arrows-to-eye"></i>
-                                    </button>
-                                    <button class="btn btn-outline-primary btn-sm" id="btn-fullscreen-analysis" style="font-size: 10px; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
-                                        <i class="fa-solid fa-expand"></i> Plein écran
-                                    </button>
-                                </div>
+                                <button class="btn btn-outline-primary btn-sm" id="btn-fullscreen-analysis" style="font-size: 10px; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
+                                    <i class="fa-solid fa-expand"></i> Plein écran
+                                </button>
                             </div>
                             <div id="analysis-chart-container" style="flex-grow: 1; min-height: 350px; position: relative; border-radius: 6px; overflow: hidden; background: var(--bg-card);">
                                 <div id="analysis_chart" style="height: 100%; width: 100%;"></div>
+                                <!-- Floating Zoom Controls centered at the bottom -->
+                                <div style="position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); z-index: 10; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);">
+                                    <button class="btn btn-sm" id="btn-zoom-in-analysis" title="Zoomer" style="font-size: 11px; padding: 4px 8px; color: #f8fafc; border: none; background: transparent; display: flex; align-items: center; cursor: pointer;">
+                                        <i class="fa-solid fa-magnifying-glass-plus"></i>
+                                    </button>
+                                    <button class="btn btn-sm" id="btn-zoom-out-analysis" title="Dézoomer" style="font-size: 11px; padding: 4px 8px; color: #f8fafc; border: none; background: transparent; display: flex; align-items: center; cursor: pointer;">
+                                        <i class="fa-solid fa-magnifying-glass-minus"></i>
+                                    </button>
+                                    <button class="btn btn-sm" id="btn-reset-analysis" title="Ajuster l'échelle" style="font-size: 11px; padding: 4px 8px; color: #f8fafc; border: none; background: transparent; display: flex; align-items: center; cursor: pointer;">
+                                        <i class="fa-solid fa-arrows-to-eye"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -559,6 +560,6 @@
     <script src="/static/js/lightweight-charts.js"></script>
     
     <!-- Application Script -->
-    <script src="/static/js/app.js?v=106"></script>
+    <script src="/static/js/app.js?v=108"></script>
 </body>
 </html>
