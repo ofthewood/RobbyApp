@@ -11,7 +11,8 @@ DEFAULT_CONFIG = {
     "default_sl_points": 20.0,
     "default_tp_points": 40.0,
     "auto_be_pips": 0,
-    "max_spread_pips": 8.0
+    "max_spread_pips": 8.0,
+    "key_levels": []
 }
 
 def load_config():

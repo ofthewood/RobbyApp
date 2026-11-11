@@ -7,7 +7,7 @@ import subprocess
 import httpx
 from collections import deque
 from fastapi import FastAPI, HTTPException, Request, Query
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -16,20 +16,94 @@ from typing import Optional
 
 from backend.config_manager import load_config, save_config
 
+# Patch Windows asyncio ProactorEventLoop to ignore transient connection drops (WinError 64, 10054, 121, etc.) on accept.
+# Without this, when a browser client disconnects during accept (e.g. page refresh, network fluctuation),
+# Windows IOCP raises OSError(WinError 64) which causes asyncio to close the listening socket and permanently kill the server.
+if sys.platform == "win32":
+    from asyncio import proactor_events, exceptions, trsock
+    _orig_start_serving = proactor_events.BaseProactorEventLoop._start_serving
+
+    def _patched_start_serving(self, protocol_factory, sock,
+                               sslcontext=None, server=None, backlog=100,
+                               ssl_handshake_timeout=None,
+                               ssl_shutdown_timeout=None):
+        def loop(f=None):
+            try:
+                if f is not None:
+                    try:
+                        conn, addr = f.result()
+                    except OSError as exc:
+                        if getattr(exc, 'winerror', None) in (64, 121, 10054, 1236):
+                            conn = None
+                        else:
+                            raise
+                    else:
+                        if self._debug:
+                            proactor_events.logger.debug("%r got a new connection from %r: %r",
+                                                         server, addr, conn)
+                        protocol = protocol_factory()
+                        if sslcontext is not None:
+                            self._make_ssl_transport(
+                                conn, protocol, sslcontext, server_side=True,
+                                extra={'peername': addr}, server=server,
+                                ssl_handshake_timeout=ssl_handshake_timeout,
+                                ssl_shutdown_timeout=ssl_shutdown_timeout)
+                        else:
+                            self._make_socket_transport(
+                                conn, protocol,
+                                extra={'peername': addr}, server=server)
+
+                if self.is_closed():
+                    return
+                f = self._proactor.accept(sock)
+            except OSError as exc:
+                if sock.fileno() != -1:
+                    self.call_exception_handler({
+                        'message': 'Accept failed on a socket',
+                        'exception': exc,
+                        'socket': trsock.TransportSocket(sock),
+                    })
+                    sock.close()
+                elif self._debug:
+                    proactor_events.logger.debug("Accept failed on socket %r",
+                                                 sock, exc_info=True)
+            except exceptions.CancelledError:
+                sock.close()
+            else:
+                self._accept_futures[sock.fileno()] = f
+                f.add_done_callback(loop)
+
+        self.call_soon(loop)
+
+    proactor_events.BaseProactorEventLoop._start_serving = _patched_start_serving
+
 class Candle:
     def __init__(self, start_time, open_price):
-        self.time = start_time
+        self.time = int(start_time)
+        self.start_time = int(start_time)
+        self.end_time = int(start_time)
         self.open = open_price
         self.high = open_price
         self.low = open_price
         self.close = open_price
         self.volume = 1
+        self.tick_count = 1
+        self.active_duration = 1
 
-    def update(self, price):
+    def update(self, price, timestamp=None):
         self.high = max(self.high, price)
         self.low = min(self.low, price)
         self.close = price
         self.volume += 1
+        self.tick_count += 1
+        if timestamp:
+            ts = int(timestamp)
+            delta = ts - self.end_time
+            if 0 <= delta <= 120:
+                self.active_duration += delta
+            else:
+                self.active_duration += 1
+            self.end_time = ts
 
     def to_dict(self):
         return {
@@ -38,7 +112,11 @@ class Candle:
             "h": self.high,
             "l": self.low,
             "c": self.close,
-            "v": self.volume
+            "v": self.volume,
+            "t_start": self.start_time,
+            "t_end": self.end_time,
+            "duration": max(1, self.active_duration),
+            "ticks": self.tick_count
         }
 
 class QuoteAggregator:
@@ -55,19 +133,94 @@ class QuoteAggregator:
             45: None,
             60: None
         }
+        # Tick-based resolutions
+        self.tick_resolutions = [100, 200, 400, 1000]
+        self.tick_history = {
+            100: deque(maxlen=2000),
+            200: deque(maxlen=2000),
+            400: deque(maxlen=2000),
+            1000: deque(maxlen=2000)
+        }
+        self.current_tick_candle = {
+            100: None,
+            200: None,
+            400: None,
+            1000: None
+        }
+        self.last_completed_tick_candle = {
+            100: None,
+            200: None,
+            400: None,
+            1000: None
+        }
 
     def add_tick(self, timestamp, price):
+        ts = int(timestamp)
+        # Time-based resolutions
         for res, q in self.history.items():
-            bar_time = (int(timestamp) // res) * res
+            bar_time = (ts // res) * res
             current = self.current_candle[res]
             
             if current is None:
-                self.current_candle[res] = Candle(bar_time, price)
+                candle = Candle(bar_time, price)
+                candle.end_time = ts
+                self.current_candle[res] = candle
             elif current.time == bar_time:
-                current.update(price)
+                current.update(price, ts)
             else:
                 q.append(current.to_dict())
-                self.current_candle[res] = Candle(bar_time, price)
+                candle = Candle(bar_time, price)
+                candle.end_time = ts
+                self.current_candle[res] = candle
+
+        # Tick-based resolutions
+        for n_ticks in self.tick_resolutions:
+            cur = self.current_tick_candle[n_ticks]
+            if cur is None:
+                candle = Candle(ts, price)
+                candle.end_time = ts
+                self.current_tick_candle[n_ticks] = candle
+            else:
+                # If there was a market pause or session gap (> 120s), finalize previous session candle
+                if ts - cur.end_time > 120:
+                    candle_dict = cur.to_dict()
+                    self.tick_history[n_ticks].append(candle_dict)
+                    self.last_completed_tick_candle[n_ticks] = candle_dict
+                    new_candle = Candle(ts, price)
+                    new_candle.end_time = ts
+                    self.current_tick_candle[n_ticks] = new_candle
+                else:
+                    cur.update(price, ts)
+                    if cur.tick_count >= n_ticks:
+                        candle_dict = cur.to_dict()
+                        self.tick_history[n_ticks].append(candle_dict)
+                        self.last_completed_tick_candle[n_ticks] = candle_dict
+                        self.current_tick_candle[n_ticks] = None
+
+    def get_current_tick_status(self):
+        status = {}
+        for n_ticks in self.tick_resolutions:
+            cur = self.current_tick_candle[n_ticks]
+            last_done = self.last_completed_tick_candle.get(n_ticks)
+            prev_dur = last_done.get("duration", 0) if last_done else 0
+            if cur:
+                dur = max(1, cur.active_duration)
+                status[n_ticks] = {
+                    "count": cur.tick_count,
+                    "target": n_ticks,
+                    "duration": dur,
+                    "t_start": cur.start_time,
+                    "prev_duration": prev_dur
+                }
+            else:
+                status[n_ticks] = {
+                    "count": n_ticks,
+                    "target": n_ticks,
+                    "duration": prev_dur if prev_dur > 0 else 1,
+                    "t_start": last_done.get("t_start", 0) if last_done else 0,
+                    "prev_duration": prev_dur
+                }
+        return status
 
     def get_history(self, resolution: str, from_time: int, to_time: int):
         res_seconds = 15
@@ -109,6 +262,13 @@ class QuoteAggregator:
 
 quote_aggregator = QuoteAggregator()
 latest_quote = None
+tick_bars_cache = {}
+
+def get_current_broker_time() -> int:
+    """Return the current MT5 broker time from the live quote, or fallback to system time."""
+    if latest_quote and isinstance(latest_quote, dict) and "time" in latest_quote and latest_quote["time"]:
+        return int(latest_quote["time"])
+    return int(time.time())
 
 # Global dict to store references to subprocesses
 workers = {
@@ -150,6 +310,7 @@ def start_worker_process(port: int, path: str, account_type: str):
     worker_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "worker.py")
     cmd = [
         sys.executable,
+        "-u",
         worker_script,
         "--port", str(port),
         "--path", path,
@@ -294,6 +455,8 @@ async def quote_polling_loop():
     global latest_quote
     print("Quote polling background task started.")
     await asyncio.sleep(3) # Wait for workers to launch
+    last_tick_msc = 0
+    last_tick_bid = 0.0
     while True:
         try:
             config = load_config()
@@ -312,9 +475,17 @@ async def quote_polling_loop():
                     pass
             
             if quote:
+                # Only feed aggregator when a REAL new market tick arrived from MT5
+                tick_msc = quote.get("time_msc", 0)
+                tick_bid = quote.get("bid", 0.0)
+                is_new_market_tick = (tick_msc != last_tick_msc) or (tick_bid != last_tick_bid)
+                if is_new_market_tick:
+                    quote_aggregator.add_tick(quote["time"], quote["bid"])
+                    last_tick_msc = tick_msc
+                    last_tick_bid = tick_bid
+
+                quote["tick_status"] = quote_aggregator.get_current_tick_status()
                 latest_quote = quote
-                # Feed tick to aggregator
-                quote_aggregator.add_tick(quote["time"], quote["bid"])
             else:
                 latest_quote = {'error': 'No MT5 connection', 'symbol': symbol}
         except Exception as e:
@@ -420,7 +591,8 @@ async def get_status():
         
     return {
         "long_terminal": status_long,
-        "short_terminal": status_short
+        "short_terminal": status_short,
+        "single_mode": is_single_mode(config)
     }
 
 @app.get("/api/positions")
@@ -430,11 +602,17 @@ async def get_positions():
     symbol = config["symbol"]
     positions = []
     
+    long_pos_ok = False
+    short_pos_ok = False
+    long_ord_ok = False
+    short_ord_ok = False
+    
     # Fetch from Long worker
     try:
         res = await http_client.get(f"http://127.0.0.1:8011/positions?symbol={symbol}", timeout=1.0)
         if res.status_code == 200:
             positions.extend(res.json())
+            long_pos_ok = True
     except Exception as e:
         print(f"Error fetching positions from Long worker: {e}")
         
@@ -444,8 +622,11 @@ async def get_positions():
             res = await http_client.get(f"http://127.0.0.1:8012/positions?symbol={symbol}", timeout=1.0)
             if res.status_code == 200:
                 positions.extend(res.json())
+                short_pos_ok = True
         except Exception as e:
             print(f"Error fetching positions from Short worker: {e}")
+    else:
+        short_pos_ok = True
         
     # Fetch orders to avoid pruning pending order overrides
     orders = []
@@ -453,6 +634,7 @@ async def get_positions():
         res = await http_client.get(f"http://127.0.0.1:8011/orders?symbol={symbol}", timeout=1.0)
         if res.status_code == 200:
             orders.extend(res.json())
+            long_ord_ok = True
     except Exception as e:
         print(f"Error fetching orders from Long worker for AutoBE check: {e}")
         
@@ -461,8 +643,11 @@ async def get_positions():
             res = await http_client.get(f"http://127.0.0.1:8012/orders?symbol={symbol}", timeout=1.0)
             if res.status_code == 200:
                 orders.extend(res.json())
+                short_ord_ok = True
         except Exception as e:
             print(f"Error fetching orders from Short worker for AutoBE check: {e}")
+    else:
+        short_ord_ok = True
 
     # Enrich positions with custom AutoBE thresholds and perform automatic pruning
     overrides = load_autobe_overrides()
@@ -479,12 +664,15 @@ async def get_positions():
             
     active_order_tickets = set(str(ord["ticket"]) for ord in orders)
     
-    # Clean up stale overrides (must not be in active positions AND not in active pending orders)
-    stale_keys = [t for t in overrides if t not in active_tickets and t not in active_order_tickets]
-    if stale_keys:
-        for t in stale_keys:
-            del overrides[t]
-        save_autobe_overrides(overrides)
+    # Clean up stale overrides ONLY if we successfully fetched active state from all relevant workers
+    if long_pos_ok and short_pos_ok and long_ord_ok and short_ord_ok:
+        stale_keys = [t for t in overrides if t not in active_tickets and t not in active_order_tickets]
+        if stale_keys:
+            for t in stale_keys:
+                del overrides[t]
+            save_autobe_overrides(overrides)
+    else:
+        print(f"[AutoBE] Skipping overrides pruning due to incomplete worker responses: long_pos_ok={long_pos_ok}, short_pos_ok={short_pos_ok}, long_ord_ok={long_ord_ok}, short_ord_ok={short_ord_ok}")
         
     return positions
 
@@ -532,6 +720,7 @@ class OrderRequest(BaseModel):
     split: Optional[bool] = False
     scenario: Optional[int] = 0
     price: Optional[float] = None
+    price_mode: Optional[str] = None
 
 @app.post("/api/order")
 async def place_order(req: OrderRequest):
@@ -592,6 +781,8 @@ async def place_order(req: OrderRequest):
             }
             if req.price is not None:
                 payload["price"] = req.price
+            if req.price_mode is not None:
+                payload["price_mode"] = req.price_mode
             tasks.append(http_client.post(worker_url, json=payload, timeout=5.0))
             
         responses = await asyncio.gather(*tasks, return_exceptions=True)
@@ -642,6 +833,8 @@ async def place_order(req: OrderRequest):
     }
     if req.price is not None:
         payload["price"] = req.price
+    if req.price_mode is not None:
+        payload["price_mode"] = req.price_mode
     
     try:
         res = await http_client.post(worker_url, json=payload, timeout=5.0)
@@ -811,7 +1004,14 @@ async def modify_position(req: ModifyRequest):
 @app.get("/api/config")
 async def get_config():
     """Retrieve config file values."""
-    return load_config()
+    return JSONResponse(
+        content=load_config(),
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
 
 class ConfigUpdateRequest(BaseModel):
     symbol: str
@@ -822,6 +1022,7 @@ class ConfigUpdateRequest(BaseModel):
     default_tp_points: float
     auto_be_pips: int
     max_spread_pips: float
+    key_levels: Optional[list] = None
 
 @app.post("/api/config")
 async def update_config(req: ConfigUpdateRequest):
@@ -836,7 +1037,8 @@ async def update_config(req: ConfigUpdateRequest):
         "default_sl_points": req.default_sl_points,
         "default_tp_points": req.default_tp_points,
         "auto_be_pips": req.auto_be_pips,
-        "max_spread_pips": req.max_spread_pips
+        "max_spread_pips": req.max_spread_pips,
+        "key_levels": req.key_levels if req.key_levels is not None else old_config.get("key_levels", [])
     }
     
     # Save the config file
@@ -881,7 +1083,7 @@ async def fetch_from_worker(endpoint: str, params: dict):
     for port in ports:
         try:
             url = f"http://127.0.0.1:{port}{endpoint}"
-            res = await http_client.get(url, params=params, timeout=5.0)
+            res = await http_client.get(url, params=params, timeout=15.0)
             if res.status_code == 200:
                 return res.json()
         except Exception as e:
@@ -896,7 +1098,7 @@ async def get_udf_config():
         "supports_marks": False,
         "supports_timescale_marks": False,
         "supports_time": True,
-        "supported_resolutions": ["15S", "30S", "45S", "1", "2", "3", "5", "15", "30", "60", "D"]
+        "supported_resolutions": ["100T", "200T", "400T", "1000T", "15S", "30S", "45S", "1", "2", "3", "5", "15", "30", "60", "D"]
     }
 
 @app.get("/api/udf/time")
@@ -922,7 +1124,7 @@ async def get_udf_symbols(symbol: str):
         "has_intraday": True,
         "has_seconds": True,
         "seconds_multipliers": ["15", "30", "45"],
-        "supported_resolutions": ["15S", "30S", "45S", "1", "2", "3", "5", "15", "30", "60", "D"]
+        "supported_resolutions": ["100T", "200T", "400T", "1000T", "15S", "30S", "45S", "1", "2", "3", "5", "15", "30", "60", "D"]
     }
 
 @app.get("/api/udf/history")
@@ -933,13 +1135,92 @@ async def get_udf_history(symbol: str, resolution: str, from_time: int = Query(.
         
     res_str = resolution.upper()
     
-    # 1. Handle standard resolutions (1, 5, 15, 30, 60, D)
+    # 1. Handle Tick Resolutions (100T, 200T, 400T, 1000T, etc.)
+    if "T" in res_str:
+        try:
+            n_ticks = int(res_str.replace("T", ""))
+        except:
+            n_ticks = 200
+
+        now = get_current_broker_time()
+        limit_seconds = 7 * 86400
+        effective_from = max(from_time, now - limit_seconds)
+        effective_to = min(to_time, now) if to_time > 0 else now
+
+        symbol = config["symbol"]
+        cache_key = (symbol, n_ticks)
+        cached = tick_bars_cache.get(cache_key)
+
+        fetched_candles = []
+        now_wall = time.time()
+        if cached and (now_wall - cached["time"] < 3):
+            fetched_candles = cached["candles"]
+        else:
+            fetched_candles = await fetch_from_worker("/tick_bars", {
+                "symbol": symbol,
+                "n_ticks": n_ticks,
+                "date_from": effective_from,
+                "date_to": effective_to
+            })
+            if fetched_candles:
+                tick_bars_cache[cache_key] = {"time": now_wall, "candles": fetched_candles}
+
+        # When fetched_candles is available, it already includes the complete history
+        # plus the leftover partial bar from MT5 ticks. Use it directly to prevent gaps.
+        if fetched_candles:
+            candles_to_use = fetched_candles
+            # Synchronize quote_aggregator with MT5's actual latest tick bar
+            last_c = fetched_candles[-1]
+            if last_c.get("ticks", 0) < n_ticks:
+                cur = quote_aggregator.current_tick_candle.get(n_ticks)
+                if not cur or cur.start_time < last_c["t_start"] or (now - cur.end_time > 120):
+                    new_c = Candle(last_c["t_start"], last_c["o"])
+                    new_c.high = last_c["h"]
+                    new_c.low = last_c["l"]
+                    new_c.close = last_c["c"]
+                    new_c.tick_count = last_c["ticks"]
+                    new_c.active_duration = max(1, last_c.get("duration", 1))
+                    new_c.end_time = last_c.get("t_end", last_c["t_start"])
+                    quote_aggregator.current_tick_candle[n_ticks] = new_c
+            if len(fetched_candles) > 1:
+                quote_aggregator.last_completed_tick_candle[n_ticks] = fetched_candles[-2]
+        else:
+            deque_candles = list(quote_aggregator.tick_history.get(n_ticks, []))
+            candles_to_use = list(deque_candles)
+            current_candle = quote_aggregator.current_tick_candle.get(n_ticks)
+            if current_candle:
+                candles_to_use.append(current_candle.to_dict())
+
+        filtered_candles = [
+            c for c in sorted(candles_to_use, key=lambda x: x["t"])
+            if c["t"] >= from_time
+        ]
+
+        if not filtered_candles:
+            return {"s": "no_data"}
+
+        return {
+            "s": "ok",
+            "t": [c["t"] for c in filtered_candles],
+            "o": [c["o"] for c in filtered_candles],
+            "h": [c["h"] for c in filtered_candles],
+            "l": [c["l"] for c in filtered_candles],
+            "c": [c["c"] for c in filtered_candles],
+            "v": [c["v"] for c in filtered_candles],
+            "t_start": [c.get("t_start", c["t"]) for c in filtered_candles],
+            "t_end": [c.get("t_end", c["t"]) for c in filtered_candles],
+            "duration": [c.get("duration", 1) for c in filtered_candles],
+            "ticks": [c.get("ticks", n_ticks) for c in filtered_candles]
+        }
+    
+    # 2. Handle standard resolutions (1, 5, 15, 30, 60, D)
+    now = get_current_broker_time()
     if "S" not in res_str:
         rates = await fetch_from_worker("/rates", {
             "symbol": config["symbol"],
             "resolution": resolution,
             "date_from": from_time,
-            "date_to": to_time
+            "date_to": min(to_time, now) if to_time > 0 else now
         })
         if not rates:
             return {"s": "no_data"}
@@ -954,7 +1235,7 @@ async def get_udf_history(symbol: str, resolution: str, from_time: int = Query(.
             "v": [c["v"] for c in rates]
         }
         
-    # 2. Handle sub-minute resolutions (15S, 30S, 45S)
+    # 3. Handle sub-minute resolutions (15S, 30S, 45S)
     try:
         res_seconds = int(res_str.replace("S", ""))
     except:
@@ -963,58 +1244,18 @@ async def get_udf_history(symbol: str, resolution: str, from_time: int = Query(.
     if res_seconds not in [15, 30, 45]:
         return {"s": "no_data"}
         
-    now = int(time.time())
-    limit_seconds = 8 * 3600
-    
+    limit_seconds = 3 * 86400
     effective_from = max(from_time, now - limit_seconds)
-    effective_to = min(to_time, now)
+    effective_to = min(to_time, now) if to_time > 0 else now
     
-    if effective_from >= effective_to:
-        current = quote_aggregator.current_candle.get(res_seconds)
-        if current and from_time <= current.time <= to_time:
-            c = current.to_dict()
-            return {
-                "s": "ok",
-                "t": [c["t"]],
-                "o": [c["o"]],
-                "h": [c["h"]],
-                "l": [c["l"]],
-                "c": [c["c"]],
-                "v": [c["v"]]
-            }
-        return {"s": "no_data"}
-        
-    ticks_data = await fetch_from_worker("/ticks", {
+    fetched_candles = await fetch_from_worker("/second_bars", {
         "symbol": config["symbol"],
+        "seconds": res_seconds,
         "date_from": effective_from,
         "date_to": effective_to
     })
-    
-    fetched_candles = []
-    if ticks_data:
-        candles_dict = {}
-        for tick in ticks_data:
-            tick_time = tick["t"]
-            price = tick["b"]
-            volume = tick["v"]
-            
-            bar_time = (tick_time // res_seconds) * res_seconds
-            if bar_time not in candles_dict:
-                candles_dict[bar_time] = {
-                    "t": bar_time,
-                    "o": price,
-                    "h": price,
-                    "l": price,
-                    "c": price,
-                    "v": volume if volume > 0 else 1.0
-                }
-            else:
-                c = candles_dict[bar_time]
-                c["h"] = max(c["h"], price)
-                c["l"] = min(c["l"], price)
-                c["c"] = price
-                c["v"] += volume if volume > 0 else 1.0
-        fetched_candles = [candles_dict[t] for t in sorted(candles_dict.keys())]
+    if not fetched_candles:
+        fetched_candles = []
         
     deque_candles = list(quote_aggregator.history.get(res_seconds, []))
     current_candle = quote_aggregator.current_candle.get(res_seconds)
@@ -1028,7 +1269,7 @@ async def get_udf_history(symbol: str, resolution: str, from_time: int = Query(.
         
     filtered_candles = [
         all_candles[t] for t in sorted(all_candles.keys())
-        if from_time <= t <= to_time
+        if t >= from_time
     ]
     
     if not filtered_candles:
@@ -1050,9 +1291,9 @@ async def get_history():
     config = load_config()
     symbol = config["symbol"]
     
-    # Fetch past 30 days of history
+    # Fetch past 90 days of history
     now = int(time.time())
-    days_ago = now - (30 * 24 * 3600)
+    days_ago = now - (90 * 24 * 3600)
     
     params = {
         "date_from": days_ago,
@@ -1154,48 +1395,84 @@ async def get_history():
             
     completed_trades.sort(key=lambda x: x["close_time"], reverse=True)
     
-    from datetime import datetime, timezone
+    from datetime import datetime, timezone, timedelta
+    
+    MONTH_NAMES_FR = ["", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
+    
     daily_groups = {}
+    weekly_groups = {}
+    monthly_groups = {}
+    
     for t in completed_trades:
-        date_str = datetime.fromtimestamp(t["close_time"], timezone.utc).strftime("%Y-%m-%d")
-        if date_str not in daily_groups:
-            daily_groups[date_str] = []
-        daily_groups[date_str].append(t)
+        dt = datetime.fromtimestamp(t["close_time"], timezone.utc)
+        d_key = dt.strftime("%Y-%m-%d")
         
-    daily_stats = []
-    for date_str, t_list in daily_groups.items():
-        total_trades = len(t_list)
-        winning_trades = sum(1 for t in t_list if t["category"] == "WIN")
-        be_trades = sum(1 for t in t_list if t["category"] == "BE")
-        losing_trades = sum(1 for t in t_list if t["category"] == "LOSS")
+        # Day
+        if d_key not in daily_groups:
+            daily_groups[d_key] = {"key": d_key, "date": d_key, "label": d_key, "trades": []}
+        daily_groups[d_key]["trades"].append(t)
         
-        # Win rate can be calculated as WIN trades over total
-        win_rate = (winning_trades / total_trades) * 100 if total_trades > 0 else 0.0
-        day_net = sum(t["net"] for t in t_list)
-        day_pips = sum(t["pips"] for t in t_list)
-        day_profit = sum(t["profit"] for t in t_list)
-        day_commission = sum(t["commission"] for t in t_list)
-        day_swap = sum(t["swap"] for t in t_list)
+        # Week (Monday to Sunday)
+        monday = dt.date() - timedelta(days=dt.weekday())
+        sunday = monday + timedelta(days=6)
+        year, week_num, _ = dt.isocalendar()
+        w_key = f"{year}-W{week_num:02d}"
+        w_label = f"S{week_num:02d} ({monday.strftime('%d/%m')} - {sunday.strftime('%d/%m')})"
+        if w_key not in weekly_groups:
+            weekly_groups[w_key] = {"key": w_key, "date": d_key, "label": w_label, "trades": []}
+        weekly_groups[w_key]["trades"].append(t)
         
-        daily_stats.append({
-            "date": date_str,
-            "trades_count": total_trades,
-            "winning_count": winning_trades,
-            "be_count": be_trades,
-            "losing_count": losing_trades,
-            "win_rate": round(win_rate, 1),
-            "net": round(day_net, 2),
-            "pips": round(day_pips, 1),
-            "profit": round(day_profit, 2),
-            "commission": round(day_commission, 2),
-            "swap": round(day_swap, 2)
-        })
+        # Month
+        m_key = dt.strftime("%Y-%m")
+        m_label = f"{MONTH_NAMES_FR[dt.month]} {dt.year}"
+        if m_key not in monthly_groups:
+            monthly_groups[m_key] = {"key": m_key, "date": d_key, "label": m_label, "trades": []}
+        monthly_groups[m_key]["trades"].append(t)
         
-    daily_stats.sort(key=lambda x: x["date"], reverse=True)
+    def summarize_groups(groups):
+        res = []
+        for k, g in groups.items():
+            t_list = g["trades"]
+            total_trades = len(t_list)
+            winning_trades = sum(1 for x in t_list if x["category"] == "WIN")
+            be_trades = sum(1 for x in t_list if x["category"] == "BE")
+            losing_trades = sum(1 for x in t_list if x["category"] == "LOSS")
+            
+            win_rate = (winning_trades / total_trades) * 100 if total_trades > 0 else 0.0
+            net = sum(x["net"] for x in t_list)
+            pips = sum(x["pips"] for x in t_list)
+            profit = sum(x["profit"] for x in t_list)
+            commission = sum(x["commission"] for x in t_list)
+            swap = sum(x["swap"] for x in t_list)
+            
+            res.append({
+                "key": k,
+                "label": g["label"],
+                "date": g["date"],
+                "trades_count": total_trades,
+                "winning_count": winning_trades,
+                "be_count": be_trades,
+                "losing_count": losing_trades,
+                "win_rate": round(win_rate, 1),
+                "net": round(net, 2),
+                "pips": round(pips, 1),
+                "profit": round(profit, 2),
+                "commission": round(commission, 2),
+                "swap": round(swap, 2)
+            })
+        res.sort(key=lambda x: x["key"], reverse=True)
+        return res
+
+    daily_stats = summarize_groups(daily_groups)
+    weekly_stats = summarize_groups(weekly_groups)
+    monthly_stats = summarize_groups(monthly_groups)
     
     return {
         "trades": completed_trades,
-        "stats": daily_stats
+        "stats": daily_stats,
+        "daily_stats": daily_stats,
+        "weekly_stats": weekly_stats,
+        "monthly_stats": monthly_stats
     }
 
 if __name__ == "__main__":

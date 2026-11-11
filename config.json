@@ -5,6 +5,7 @@
     "default_lot": 0.5,
     "default_sl_points": 40.0,
     "default_tp_points": 80.0,
-    "auto_be_pips": 60,
-    "max_spread_pips": 8.0
+    "auto_be_pips": 20,
+    "max_spread_pips": 8.0,
+    "key_levels": []
 }

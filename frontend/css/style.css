@@ -949,6 +949,11 @@ input, button, select, textarea {
     display: flex;
 }
 
+#rsi-config-modal.active {
+    justify-content: center;
+    align-items: center;
+}
+
 .modal-sheet {
     background-color: var(--bg-card);
     width: 100%;
@@ -1510,7 +1515,7 @@ input, button, select, textarea {
 }
 
 @media (min-width: 1024px) {
-    /* PC Full Screen Desktop Experience - ONLY when active tab is Journal */
+    /* PC Full Screen Desktop Experience - for Journal & Trade (Graph) tabs */
     body.pc-fullscreen-active {
         background-color: var(--bg-app) !important;
         overflow: hidden !important; /* Lock viewport scroll for app look */
@@ -1523,6 +1528,17 @@ input, button, select, textarea {
         border-radius: 0 !important;
         box-shadow: none !important;
         border: none !important;
+    }
+    
+    /* Trade Tab (Graph) Desktop Fullscreen Optimizations */
+    body.pc-fullscreen-active #tab-graph {
+        max-width: 1400px;
+        margin: 0 auto;
+        width: 100%;
+    }
+    
+    body.pc-fullscreen-active #tab-graph .graph-container-card {
+        height: 520px;
     }
     
     /* Centered constraints for clean scalp layout */
@@ -1650,6 +1666,10 @@ input, button, select, textarea {
 
 .inline-adjuster-grid {
     grid-template-columns: repeat(4, 1fr);
+}
+
+.inline-adjuster-grid.grid-6 {
+    grid-template-columns: repeat(6, 1fr);
 }
 
 .inline-preset-grid {
@@ -1799,13 +1819,29 @@ input, button, select, textarea {
 /* Timeframe Selector Bar for the Chart */
 .chart-timeframe-selector {
     display: flex;
-    gap: 8px;
-    padding: 8px;
+    gap: 6px;
+    padding: 6px 8px;
     background-color: var(--bg-card);
     border-bottom: 1px solid var(--border-color);
-    justify-content: center;
     align-items: center;
+    justify-content: flex-start;
     flex-shrink: 0;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none;
+}
+
+.chart-timeframe-selector::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+.chart-timeframe-selector > * {
+    flex-shrink: 0 !important;
 }
 
 /* Floating Toggle Button for Console Visibility */

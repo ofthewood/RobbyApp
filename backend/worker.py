@@ -51,55 +51,13 @@ def get_filling_type(symbol):
     else:
         return mt5.ORDER_FILLING_RETURN
 
-def get_timezone_offset(symbol: str) -> int:
-    """Calculate the timezone offset between the MT5 broker terminal time and UTC in seconds,
-    using a local cache file to persist the offset during weekends/market closure."""
-    import time
-    import json
-    import os
-    
-    cache_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "timezone_offset_cache.json")
-    
-    # Try to load cached offset first as a fallback
-    cached_offset = None
-    if os.path.exists(cache_file):
-        try:
-            with open(cache_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                cached_offset = data.get("offset")
-        except Exception:
-            pass
+_selected_symbols = set()
 
-    # Query active symbols to find the most recent tick
-    test_symbols = [symbol, "EURUSD", "USDJPY", "GBPUSD"]
-    max_tick_time = 0
-    
-    for ts in test_symbols:
-        mt5.symbol_select(ts, True)
-        tick = mt5.symbol_info_tick(ts)
-        if tick:
-            if tick.time > max_tick_time:
-                max_tick_time = tick.time
-                
-    if max_tick_time == 0:
-        return cached_offset if cached_offset is not None else 7200
-        
-    current_time = int(time.time())
-    
-    # If the tick is fresh (less than 14 hours difference from UTC), compute and cache the offset
-    if abs(max_tick_time - current_time) < 14 * 3600:
-        diff = max_tick_time - current_time
-        offset = round(diff / 900) * 900
-        
-        # Save to cache
-        try:
-            with open(cache_file, "w", encoding="utf-8") as f:
-                json.dump({"offset": offset, "updated_at": current_time}, f)
-        except Exception as e:
-            print(f"Error saving timezone offset cache: {e}")
-        return offset
-        
-    return cached_offset if cached_offset is not None else 7200
+def ensure_symbol_selected(symbol: str):
+    """Ensure symbol is selected in MarketWatch without redundant IPC calls."""
+    if symbol not in _selected_symbols:
+        mt5.symbol_select(symbol, True)
+        _selected_symbols.add(symbol)
 
 @app.on_event("startup")
 async def startup_event():
@@ -107,8 +65,12 @@ async def startup_event():
     print(f"Starting worker for {ACCOUNT_TYPE.upper()} on port {PORT}")
     print(f"Connecting to MT5 terminal at: {TERMINAL_PATH}")
     
-    # Initialize connection to the specific MT5 terminal
-    if mt5.initialize(path=TERMINAL_PATH):
+    # Initialize connection to the MT5 terminal (try running instance first to prevent IPC deadlock)
+    init_ok = mt5.initialize()
+    if not init_ok and TERMINAL_PATH:
+        init_ok = mt5.initialize(path=TERMINAL_PATH)
+        
+    if init_ok:
         initialized = True
         print(f"Successfully connected to MT5 ({ACCOUNT_TYPE})")
     else:
@@ -124,8 +86,11 @@ async def shutdown_event():
 async def get_status():
     global initialized
     if not initialized:
-        # Retry initialization in case it failed previously (e.g. terminal was closed)
-        if mt5.initialize(path=TERMINAL_PATH):
+        # Retry initialization in case it failed previously
+        init_ok = mt5.initialize()
+        if not init_ok and TERMINAL_PATH:
+            init_ok = mt5.initialize(path=TERMINAL_PATH)
+        if init_ok:
             initialized = True
         else:
             return {
@@ -174,8 +139,8 @@ async def get_quote(symbol: str = "GER40"):
     if not initialized:
         raise HTTPException(status_code=503, detail="MT5 terminal not connected")
         
-    # Ensure symbol is selected in MarketWatch
-    mt5.symbol_select(symbol, True)
+    # Ensure symbol is selected in MarketWatch once
+    ensure_symbol_selected(symbol)
     
     tick = mt5.symbol_info_tick(symbol)
     if tick is None:
@@ -185,14 +150,13 @@ async def get_quote(symbol: str = "GER40"):
             raise HTTPException(status_code=404, detail=f"Symbol '{symbol}' not found on broker")
         raise HTTPException(status_code=500, detail=f"No quotes available for '{symbol}'")
         
-    offset = get_timezone_offset(symbol)
     return {
         "symbol": symbol,
-        "bid": tick.bid,
-        "ask": tick.ask,
-        "time": int(tick.time) - offset,
-        "time_msc": int(tick.time_msc) - (offset * 1000),
-        "volume": tick.volume,
+        "bid": float(tick.bid),
+        "ask": float(tick.ask),
+        "time": int(tick.time),
+        "time_msc": int(tick.time_msc),
+        "volume": float(tick.volume),
     }
 
 @app.get("/positions")
@@ -380,6 +344,7 @@ class OrderRequest(BaseModel):
     sl_points: float = 0.0
     tp_points: float = 0.0
     price: Optional[float] = None
+    price_mode: Optional[str] = None
 
 @app.post("/order")
 async def place_order(req: OrderRequest):
@@ -388,15 +353,28 @@ async def place_order(req: OrderRequest):
         raise HTTPException(status_code=503, detail="MT5 terminal not connected")
         
     # Select symbol
-    mt5.symbol_select(req.symbol, True)
+    ensure_symbol_selected(req.symbol)
     
     tick = mt5.symbol_info_tick(req.symbol)
     if tick is None:
         raise HTTPException(status_code=400, detail=f"Cannot fetch current tick for {req.symbol}")
         
-    is_pending = req.price is not None and req.price > 0
+    is_pending = False
     
-    if is_pending:
+    if req.price_mode and req.price_mode.lower() == "l10":
+        pip_size = get_pip_size(req.symbol)
+        info = mt5.symbol_info(req.symbol)
+        digits = info.digits if info else 1
+        if req.action.upper() == "BUY":
+            price = round(tick.ask - (10.0 * pip_size), digits)
+            order_type = mt5.ORDER_TYPE_BUY_LIMIT
+        elif req.action.upper() == "SELL":
+            price = round(tick.bid + (10.0 * pip_size), digits)
+            order_type = mt5.ORDER_TYPE_SELL_LIMIT
+        else:
+            raise HTTPException(status_code=400, detail="Invalid action. Must be BUY or SELL")
+        is_pending = True
+    elif req.price is not None and req.price > 0:
         price = float(req.price)
         if req.action.upper() == "BUY":
             order_type = mt5.ORDER_TYPE_BUY_LIMIT if price < tick.ask else mt5.ORDER_TYPE_BUY_STOP
@@ -404,6 +382,7 @@ async def place_order(req: OrderRequest):
             order_type = mt5.ORDER_TYPE_SELL_LIMIT if price > tick.bid else mt5.ORDER_TYPE_SELL_STOP
         else:
             raise HTTPException(status_code=400, detail="Invalid action. Must be BUY or SELL")
+        is_pending = True
     else:
         if req.action.upper() == "BUY":
             order_type = mt5.ORDER_TYPE_BUY
@@ -585,26 +564,24 @@ async def get_ticks(symbol: str, date_from: int, date_to: int):
     if not initialized:
         raise HTTPException(status_code=503, detail="MT5 terminal not connected")
         
-    mt5.symbol_select(symbol, True)
-    
-    offset = get_timezone_offset(symbol)
-    broker_from = date_from + offset
-    broker_to = date_to + offset
+    ensure_symbol_selected(symbol)
     
     import datetime
-    dt_from = datetime.datetime.fromtimestamp(broker_from, datetime.timezone.utc)
-    dt_to = datetime.datetime.fromtimestamp(broker_to, datetime.timezone.utc)
+    dt_from = datetime.datetime.fromtimestamp(date_from)
+    dt_to   = datetime.datetime.fromtimestamp(date_to)
     
     ticks = mt5.copy_ticks_range(symbol, dt_from, dt_to, mt5.COPY_TICKS_ALL)
+    if ticks is None or len(ticks) == 0:
+        ticks = mt5.copy_ticks_from(symbol, dt_from, 100000, mt5.COPY_TICKS_ALL)
+        
     if ticks is None:
         return []
         
     result = []
     for t in ticks:
-        # Access numpy structured array elements using dictionary-like indexing
         result.append({
-            "t": int(t['time']) - offset,
-            "m": int(t['time_msc']) - (offset * 1000),
+            "t": int(t['time']),
+            "m": int(t['time_msc']),
             "b": float(t['bid']),
             "a": float(t['ask']),
             "l": float(t['last']) if 'last' in t.dtype.names else 0.0,
@@ -612,16 +589,171 @@ async def get_ticks(symbol: str, date_from: int, date_to: int):
         })
     return result
 
+@app.get("/second_bars")
+async def get_second_bars(symbol: str, seconds: int, date_from: int, date_to: int):
+    global initialized
+    if not initialized:
+        raise HTTPException(status_code=503, detail="MT5 terminal not connected")
+        
+    ensure_symbol_selected(symbol)
+    
+    import datetime, numpy as np
+    dt_from = datetime.datetime.fromtimestamp(date_from)
+    dt_to   = datetime.datetime.fromtimestamp(date_to)
+    
+    ticks = mt5.copy_ticks_range(symbol, dt_from, dt_to, mt5.COPY_TICKS_ALL)
+    if ticks is None or len(ticks) < 50:
+        dt_from_wide = dt_to - datetime.timedelta(days=5)
+        fallback_ticks = mt5.copy_ticks_range(symbol, dt_from_wide, dt_to, mt5.COPY_TICKS_ALL)
+        if fallback_ticks is not None and len(fallback_ticks) > 0:
+            ticks = fallback_ticks[-60000:] if len(fallback_ticks) > 60000 else fallback_ticks
+            
+    if ticks is None or len(ticks) == 0:
+        return []
+        
+    times = ticks['time'].astype(np.int64)
+    bids  = ticks['bid'].astype(np.float64)
+    
+    if len(times) == 0:
+        return []
+        
+    buckets = (times // seconds) * seconds
+    unique_buckets, idx_start = np.unique(buckets, return_index=True)
+    splits = np.split(bids, idx_start[1:])
+    
+    bars = []
+    for b_time, chunk in zip(unique_buckets, splits):
+        bars.append({
+            "t": int(b_time),
+            "o": float(chunk[0]),
+            "h": float(np.max(chunk)),
+            "l": float(np.min(chunk)),
+            "c": float(chunk[-1]),
+            "v": len(chunk)
+        })
+    return bars
+
+@app.get("/tick_bars")
+async def get_tick_bars(symbol: str, n_ticks: int, date_from: int, date_to: int):
+    global initialized
+    if not initialized:
+        raise HTTPException(status_code=503, detail="MT5 terminal not connected")
+        
+    ensure_symbol_selected(symbol)
+    
+    import datetime, numpy as np
+    dt_from = datetime.datetime.fromtimestamp(date_from)
+    dt_to   = datetime.datetime.fromtimestamp(date_to)
+    
+    # Try full range first
+    ticks = mt5.copy_ticks_range(symbol, dt_from, dt_to, mt5.COPY_TICKS_ALL)
+    
+    # Fallback: paginate forward in 100k-tick chunks to cover full range
+    if ticks is None or len(ticks) == 0:
+        all_ticks = []
+        cursor = dt_from
+        for _ in range(20):  # max 2,000,000 ticks
+            chunk = mt5.copy_ticks_from(symbol, cursor, 100000, mt5.COPY_TICKS_ALL)
+            if chunk is None or len(chunk) == 0:
+                break
+            all_ticks.append(chunk)
+            last_time = datetime.datetime.fromtimestamp(int(chunk[-1]['time']))
+            if last_time >= dt_to or len(chunk) < 100000:
+                break
+            cursor = last_time + datetime.timedelta(seconds=1)
+        if all_ticks:
+            ticks = np.concatenate(all_ticks)
+        else:
+            ticks = None
+        
+    if ticks is None or len(ticks) == 0:
+        return []
+
+    bids  = ticks['bid'].astype(np.float64)
+    times = ticks['time'].astype(np.int64)
+    
+    # Keep only ticks within [date_from, date_to] (with slight tolerance up to current tick)
+    mask  = (times >= date_from) & (times <= date_to + 60)
+    bids  = bids[mask]
+    times = times[mask]
+
+    total_ticks = len(times)
+    if total_ticks == 0:
+        return []
+
+    num_chunks = total_ticks // n_ticks
+    bars = []
+    last_bar_time = 0
+    
+    if num_chunks > 0:
+        bids_matrix  = bids[:num_chunks * n_ticks].reshape(num_chunks, n_ticks)
+        times_matrix = times[:num_chunks * n_ticks].reshape(num_chunks, n_ticks)
+        
+        opens    = bids_matrix[:, 0]
+        highs    = bids_matrix.max(axis=1)
+        lows     = bids_matrix.min(axis=1)
+        closes   = bids_matrix[:, -1]
+        t_starts = times_matrix[:, 0]
+        t_ends   = times_matrix[:, -1]
+        
+        # Calculate active trading duration (ignoring market pauses / overnight gaps > 120s)
+        time_diffs = np.diff(times_matrix, axis=1)
+        durations = np.sum(np.where((time_diffs >= 0) & (time_diffs <= 120), time_diffs, 1), axis=1)
+        
+        for i in range(num_chunks):
+            t_start  = int(t_starts[i])
+            t_end    = int(t_ends[i])
+            bar_time = t_start
+            if bar_time <= last_bar_time:
+                bar_time = last_bar_time + 1
+            last_bar_time = bar_time
+            bars.append({
+                "t": bar_time, "o": float(opens[i]), "h": float(highs[i]),
+                "l": float(lows[i]),  "c": float(closes[i]), "v": n_ticks,
+                "t_start": t_start, "t_end": t_end,
+                "duration": max(1, int(durations[i])), "ticks": n_ticks
+            })
+            
+    leftover = total_ticks % n_ticks
+    if leftover > 0:
+        idx       = num_chunks * n_ticks
+        bids_left = bids[idx:]
+        times_left = times[idx:]
+        t_start   = int(times_left[0])
+        t_end     = int(times_left[-1])
+        bar_time  = t_start
+        if bar_time <= last_bar_time:
+            bar_time = last_bar_time + 1
+            
+        if len(times_left) > 1:
+            diff_left = np.diff(times_left)
+            left_duration = int(np.sum(np.where((diff_left >= 0) & (diff_left <= 120), diff_left, 1)))
+        else:
+            left_duration = 1
+            
+        bars.append({
+            "t": bar_time, "o": float(bids_left[0]), "h": float(bids_left.max()),
+            "l": float(bids_left.min()), "c": float(bids_left[-1]), "v": leftover,
+            "t_start": t_start, "t_end": t_end,
+            "duration": max(1, left_duration), "ticks": leftover
+        })
+        
+    return bars
+
+
+
 @app.get("/rates")
 async def get_rates(symbol: str, resolution: str, date_from: int, date_to: int):
     global initialized
     if not initialized:
         raise HTTPException(status_code=503, detail="MT5 terminal not connected")
         
-    mt5.symbol_select(symbol, True)
+    ensure_symbol_selected(symbol)
     
     tf = None
     res = resolution.upper()
+    if res.endswith("M") and res[:-1].isdigit():
+        res = res[:-1]
     if res == "1":
         tf = mt5.TIMEFRAME_M1
     elif res == "2":
@@ -634,7 +766,7 @@ async def get_rates(symbol: str, resolution: str, date_from: int, date_to: int):
         tf = mt5.TIMEFRAME_M15
     elif res == "30":
         tf = mt5.TIMEFRAME_M30
-    elif res == "60" or res == "1H":
+    elif res == "60" or res == "1H" or res == "60M":
         tf = mt5.TIMEFRAME_H1
     elif res == "D" or res == "1D":
         tf = mt5.TIMEFRAME_D1
@@ -642,23 +774,22 @@ async def get_rates(symbol: str, resolution: str, date_from: int, date_to: int):
     if tf is None:
         raise HTTPException(status_code=400, detail=f"Unsupported resolution: {resolution}")
         
-    offset = get_timezone_offset(symbol)
-    broker_from = date_from + offset
-    broker_to = date_to + offset
-    
     import datetime
-    dt_from = datetime.datetime.fromtimestamp(broker_from, datetime.timezone.utc)
-    dt_to = datetime.datetime.fromtimestamp(broker_to, datetime.timezone.utc)
+    dt_from = datetime.datetime.fromtimestamp(date_from)
+    dt_to   = datetime.datetime.fromtimestamp(date_to)
     
     rates = mt5.copy_rates_range(symbol, tf, dt_from, dt_to)
+    if rates is None or len(rates) == 0:
+        rates = mt5.copy_rates_from_pos(symbol, tf, 0, 1500)
+        
+    print(f"[Worker] /rates symbol={symbol} tf={tf} count={len(rates) if rates is not None else None} err={mt5.last_error()}", flush=True)
     if rates is None:
         return []
         
     result = []
     for r in rates:
-        # Access numpy structured array elements using dictionary-like indexing
         result.append({
-            "t": int(r['time']) - offset,
+            "t": int(r['time']),
             "o": float(r['open']),
             "h": float(r['high']),
             "l": float(r['low']),
@@ -673,15 +804,11 @@ async def get_history(date_from: int, date_to: int, symbol: str):
     if not initialized:
         raise HTTPException(status_code=503, detail="MT5 terminal not connected")
         
-    mt5.symbol_select(symbol, True)
-    
-    offset = get_timezone_offset(symbol)
-    broker_from = date_from + offset
-    broker_to = date_to + offset
+    ensure_symbol_selected(symbol)
     
     import datetime
-    dt_from = datetime.datetime.fromtimestamp(broker_from, datetime.timezone.utc)
-    dt_to = datetime.datetime.fromtimestamp(broker_to, datetime.timezone.utc)
+    dt_from = datetime.datetime.fromtimestamp(date_from)
+    dt_to   = datetime.datetime.fromtimestamp(date_to)
     
     deals = mt5.history_deals_get(dt_from, dt_to)
     if deals is None:
@@ -691,15 +818,14 @@ async def get_history(date_from: int, date_to: int, symbol: str):
     for d in deals:
         try:
             d_sym = getattr(d, 'symbol', '')
-            # We only want trades of the selected symbol (excluding balance records of other symbols)
             if d_sym != '' and d_sym.upper() != symbol.upper():
                 continue
                 
             result.append({
                 "ticket": int(d.ticket),
                 "order": int(d.order),
-                "time": int(d.time) - offset,
-                "time_msc": int(d.time_msc) - (offset * 1000),
+                "time": int(d.time),
+                "time_msc": int(d.time_msc),
                 "type": int(d.type),
                 "entry": int(d.entry),
                 "magic": int(d.magic),

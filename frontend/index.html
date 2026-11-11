@@ -50,19 +50,32 @@
                 <div class="journal-layout-wrapper">
                     <!-- LEFT COLUMN: Stats, tables and logs -->
                     <div class="journal-left-col">
-                        <!-- Account Summary Dashboard -->
-                        <div class="summary-dashboard">
-                            <div class="summary-metric">
-                                <span class="metric-label">Equity Totale</span>
-                                <span class="metric-val" id="journal-equity">0.00 EUR</span>
+                        <!-- Account Summary Dashboard with Account Selector -->
+                        <div class="param-card journal-account-card" style="padding: 10px 14px; margin-bottom: 8px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                                <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.3px; display: flex; align-items: center; gap: 6px;">
+                                    <i class="fa-solid fa-wallet" style="color: var(--primary-color);"></i>
+                                    Compte
+                                </span>
+                                <div class="preset-selector" id="journal-account-selector" style="width: auto; margin: 0; display: inline-flex; gap: 4px;">
+                                    <button class="preset-btn active" data-account="total" title="Somme des 2 comptes (Bull + Short)">Total</button>
+                                    <button class="preset-btn" data-account="long" title="Compte MT5 Long (Bull)">Bull</button>
+                                    <button class="preset-btn" data-account="short" title="Compte MT5 Short (Bear)">Short</button>
+                                </div>
                             </div>
-                            <div class="summary-metric">
-                                <span class="metric-label">Balance</span>
-                                <span class="metric-val" id="journal-balance">0.00 EUR</span>
-                            </div>
-                            <div class="summary-metric">
-                                <span class="metric-label">Marge Libre</span>
-                                <span class="metric-val" id="journal-free-margin">0.00 EUR</span>
+                            <div class="summary-dashboard" style="margin: 0;">
+                                <div class="summary-metric" style="background-color: var(--bg-input);">
+                                    <span class="metric-label" id="journal-equity-label">Equity</span>
+                                    <span class="metric-val" id="journal-equity">0.00 EUR</span>
+                                </div>
+                                <div class="summary-metric" style="background-color: var(--bg-input);">
+                                    <span class="metric-label" id="journal-balance-label">Balance</span>
+                                    <span class="metric-val" id="journal-balance">0.00 EUR</span>
+                                </div>
+                                <div class="summary-metric" style="background-color: var(--bg-input);">
+                                    <span class="metric-label" id="journal-free-margin-label">Marge</span>
+                                    <span class="metric-val" id="journal-free-margin">0.00 EUR</span>
+                                </div>
                             </div>
                         </div>
 
@@ -95,14 +108,21 @@
                             </div>
                         </div>
 
-                        <!-- Daily Summary Section -->
+                        <!-- Performance Summary Section (Jour / Semaine / Mois) -->
                         <div class="param-card journal-stats-card">
-                            <h3>Performance par Jour</h3>
+                            <div class="section-header" style="margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                                <h3 id="journal-stats-title" style="margin: 0; font-size: 13px; font-weight: 700;">Performance par Jour</h3>
+                                <div class="preset-selector" id="journal-stats-period-selector" style="width: auto; margin: 0; display: inline-flex; gap: 4px;">
+                                    <button class="preset-btn active" data-period="day">Jour</button>
+                                    <button class="preset-btn" data-period="week">Semaine</button>
+                                    <button class="preset-btn" data-period="month">Mois</button>
+                                </div>
+                            </div>
                             <div class="stats-table-wrapper" style="max-height: 250px; overflow-y: auto;">
                                 <table class="positions-table stats-table">
                                     <thead>
                                         <tr>
-                                            <th>Date</th>
+                                            <th id="stats-period-th">Date</th>
                                             <th>Trades</th>
                                             <th>G / BE / P</th>
                                             <th>Gain Net</th>
@@ -153,7 +173,15 @@
                                 <h3 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
                                     <i class="fa-solid fa-chart-line" style="color: var(--color-primary);"></i>
                                     Analyse Graphique
-                                    <span id="analysis-active-date" style="font-weight: 500; color: var(--text-muted); font-size: 11px;">(Sélectionnez un jour)</span>
+                                    <div style="display: inline-flex; align-items: center; gap: 6px; margin-left: 6px;">
+                                        <button class="btn" id="btn-prev-analysis-day" title="Jour précédent" style="padding: 2px 6px; font-size: 9px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; height: 20px;">
+                                            <i class="fa-solid fa-chevron-left"></i>
+                                        </button>
+                                        <span id="analysis-active-date" style="font-weight: 600; color: var(--text-secondary); font-size: 11px; min-width: 75px; text-align: center;">(Sélectionnez un jour)</span>
+                                        <button class="btn" id="btn-next-analysis-day" title="Jour suivant" style="padding: 2px 6px; font-size: 9px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; height: 20px;">
+                                            <i class="fa-solid fa-chevron-right"></i>
+                                        </button>
+                                    </div>
                                 </h3>
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     <label style="font-size: 10px; display: flex; align-items: center; gap: 6px; color: #f8fafc; cursor: pointer; user-select: none; margin: 0; background: rgba(30, 41, 59, 0.7); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color);">
@@ -187,6 +215,60 @@
                                     </button>
                                 </div>
                             </div>
+                            <!-- Stats additionnels sous le graphique d'analyse -->
+                            <div id="analysis-stats-container" style="display: none; padding: 12px; background: var(--bg-card); border-top: 1px solid var(--border-color); border-radius: 0 0 6px 6px;">
+                                <div class="analysis-stats-row" id="analysis-stats-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
+                                    <!-- Dynamic stats cells populate here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- TAB: NIVEAUX CLÉS -->
+            <section id="tab-levels" class="tab-content">
+                <div class="param-card">
+                    <h3>Gestion des Niveaux Clés Support / Résistance</h3>
+                    <form id="level-form" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+                        <input type="hidden" id="level-edit-id" value="">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="level-price" style="font-size: 11px; margin-bottom: 4px; display: block;">Prix du Niveau</label>
+                                <input type="number" id="level-price" step="0.1" required style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 13px;" placeholder="Ex: 18100.5">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="level-importance" style="font-size: 11px; margin-bottom: 4px; display: block;">Importance</label>
+                                <select id="level-importance" required style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-size: 13px;">
+                                    <option value="majeur">Majeur (Fort)</option>
+                                    <option value="moyen">Moyen (Normal)</option>
+                                    <option value="mineur">Mineur (Faible)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="submit" class="btn btn-primary" id="btn-save-level" style="flex-grow: 1; padding: 10px; font-weight: 600; border-radius: 6px; font-size: 12px; background: var(--primary-color); color: #fff; border: none; cursor: pointer;">Ajouter le Niveau</button>
+                            <button type="button" class="btn btn-outline-primary" id="btn-cancel-edit-level" style="display: none; padding: 10px; font-weight: 600; border-radius: 6px; font-size: 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-primary); cursor: pointer;">Annuler</button>
+                        </div>
+                    </form>
+                    
+                    <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+                        <h4 style="margin: 0 0 12px 0; font-size: 12px; font-weight: 700; color: var(--text-secondary);">Liste des Niveaux (Triage décroissant)</h4>
+                        
+                        <div class="table-container" style="overflow-x: auto;">
+                            <table class="positions-table" style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <th style="padding: 8px 4px; color: var(--text-muted); font-weight: 600;">Prix</th>
+                                        <th style="padding: 8px 4px; color: var(--text-muted); font-weight: 600;">Importance</th>
+                                        <th style="padding: 8px 4px; color: var(--text-muted); font-weight: 600; text-align: right;">Espace (Pips)</th>
+                                        <th style="padding: 8px 4px; color: var(--text-muted); font-weight: 600; text-align: right;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="levels-table-body">
+                                    <!-- Dynamic list of levels will populate here -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -276,32 +358,113 @@
             <!-- TAB: GRAPH -->
             <section id="tab-graph" class="tab-content active">
                 <div class="graph-container-card" id="graph-chart-card">
-                    <!-- Sleek Timeframe Selector Bar -->
+                    <!-- Sleek Timeframe Selector Bar (Top) -->
                     <div class="chart-timeframe-selector">
-                        <button class="tf-btn active" data-tf="15S">15s</button>
-                        <button class="tf-btn" data-tf="30S">30s</button>
-                        <button class="tf-btn" data-tf="45S">45s</button>
-                        <button class="tf-btn" data-tf="1">1m</button>
-                        <button class="tf-btn" data-tf="2">2m</button>
-                        <button class="tf-btn" data-tf="3">3m</button>
-                        <button class="tf-btn" data-tf="5">5m</button>
+                        <div class="tf-mode-toggle" style="display: inline-flex; background: var(--bg-input); border-radius: 6px; padding: 2px; border: 1px solid var(--border-color); margin-right: 6px;">
+                            <button class="mode-btn active" data-mode="TF" style="padding: 2px 8px; font-size: 10px; font-weight: 700; border-radius: 4px; border: none; background: var(--primary-color); color: white; cursor: pointer;">TF</button>
+                            <button class="mode-btn" data-mode="TI" style="padding: 2px 8px; font-size: 10px; font-weight: 700; border-radius: 4px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer;">TI</button>
+                        </div>
+
+                        <!-- Interval Buttons for TF mode (Time) -->
+                        <div class="interval-group group-tf" style="display: inline-flex; gap: 4px; align-items: center;">
+                            <button class="tf-btn active" data-tf="15S">15s</button>
+                            <button class="tf-btn" data-tf="30S">30s</button>
+                            <button class="tf-btn" data-tf="45S">45s</button>
+                            <button class="tf-btn" data-tf="1">1m</button>
+                            <button class="tf-btn" data-tf="2">2m</button>
+                            <button class="tf-btn" data-tf="3">3m</button>
+                            <button class="tf-btn" data-tf="5">5m</button>
+                        </div>
+
+                        <!-- Interval Buttons for TI mode (Ticks) -->
+                        <div class="interval-group group-ti" style="display: none; gap: 4px; align-items: center;">
+                            <button class="tf-btn" data-tf="100T">100T</button>
+                            <button class="tf-btn" data-tf="200T">200T</button>
+                            <button class="tf-btn" data-tf="400T">400T</button>
+                            <button class="tf-btn" data-tf="1000T">1000T</button>
+                        </div>
+
+                        <!-- RSI Divergence Controls -->
+                        <div class="rsi-control-group" style="margin-left: auto; display: flex; gap: 4px; align-items: center;">
+                            <button class="tf-btn btn-rsi-toggle" title="Activer / Désactiver RSI Divergence" style="display: flex; align-items: center; gap: 4px;">
+                                <i class="fa-solid fa-chart-line"></i> RSI Div
+                            </button>
+                            <button class="tf-btn btn-rsi-config" title="Paramètres RSI Divergence" style="padding: 6px 8px;">
+                                <i class="fa-solid fa-sliders"></i>
+                            </button>
+                        </div>
                     </div>
                     <div id="tradingview-widget-container" style="flex-grow: 1; height: calc(100% - 76px); position: relative;">
                         <div id="tradingview_chart" style="height: 100%;"></div>
+                        
+                        <!-- Floating Chart Info Legend (Hover Metrics & Live Tick Status) -->
+                        <div id="chart-hover-legend" style="position: absolute; top: 6px; left: 6px; max-width: calc(100% - 55px); z-index: 12; background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(8px); border: 1px solid #e2e8f0; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-family: 'Inter', sans-serif; color: #1e293b; pointer-events: none; display: none; align-items: center; flex-wrap: wrap; gap: 6px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);">
+                            <span id="legend-tf-tag" style="background: #475569; color: #ffffff; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 10px;">15S</span>
+                            <span id="legend-time-range" style="color: #334155; font-weight: 600;">-</span>
+                            <span id="legend-duration-tag" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 10px; display: none;">Durée: -</span>
+                            <span id="chart-tick-status-badge" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 10px; display: none; align-items: center; gap: 4px;">
+                                <i class="fa-solid fa-chart-simple" style="font-size: 9px;"></i>
+                                <span id="tick-badge-text">0/200</span>
+                            </span>
+                        </div>
+
                         <!-- Floating Toggle Button -->
                         <button class="floating-toggle-btn" id="graph-console-toggle-btn" title="Masquer/Afficher le panneau d'ordre">
                             <i class="fa-solid fa-eye-slash"></i>
                         </button>
+
+                        <!-- Floating Zoom Controls for Main Trade Chart -->
+                        <div style="position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); z-index: 14; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);">
+                            <button class="btn btn-sm" id="btn-zoom-in-trade" title="Zoomer (+)" style="font-size: 11px; padding: 4px 8px; color: #f8fafc; border: none; background: transparent; display: flex; align-items: center; cursor: pointer;">
+                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                            </button>
+                            <button class="btn btn-sm" id="btn-zoom-out-trade" title="Dézoomer (-)" style="font-size: 11px; padding: 4px 8px; color: #f8fafc; border: none; background: transparent; display: flex; align-items: center; cursor: pointer;">
+                                <i class="fa-solid fa-magnifying-glass-minus"></i>
+                            </button>
+                            <div style="display: flex; align-items: center; gap: 3px; padding: 0 4px; border-left: 1px solid rgba(255, 255, 255, 0.2); border-right: 1px solid rgba(255, 255, 255, 0.2);" title="Nombre de bougies à afficher">
+                                <input type="number" id="trade-candle-count-input" min="10" max="2000" step="10" value="100" style="width: 44px; height: 20px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 4px; color: #f8fafc; font-size: 11px; font-weight: 700; text-align: center; padding: 0; outline: none;">
+                                <span style="font-size: 10px; color: #cbd5e1; font-weight: 600;" title="Bougies">b</span>
+                            </div>
+                            <button class="btn btn-sm" id="btn-reset-trade" title="Réinitialiser l'échelle (appliquer le nombre de bougies)" style="font-size: 11px; padding: 4px 8px; color: #f8fafc; border: none; background: transparent; display: flex; align-items: center; cursor: pointer;">
+                                <i class="fa-solid fa-arrows-to-eye"></i>
+                            </button>
+                        </div>
                     </div>
-                    <!-- Sleek Timeframe Selector Bar below chart -->
+                    <!-- Sleek Timeframe Selector Bar (Bottom) -->
                     <div class="chart-timeframe-selector" style="border-top: 1px solid var(--border-color); border-bottom: none;">
-                        <button class="tf-btn active" data-tf="15S">15s</button>
-                        <button class="tf-btn" data-tf="30S">30s</button>
-                        <button class="tf-btn" data-tf="45S">45s</button>
-                        <button class="tf-btn" data-tf="1">1m</button>
-                        <button class="tf-btn" data-tf="2">2m</button>
-                        <button class="tf-btn" data-tf="3">3m</button>
-                        <button class="tf-btn" data-tf="5">5m</button>
+                        <div class="tf-mode-toggle" style="display: inline-flex; background: var(--bg-input); border-radius: 6px; padding: 2px; border: 1px solid var(--border-color); margin-right: 6px;">
+                            <button class="mode-btn active" data-mode="TF" style="padding: 2px 8px; font-size: 10px; font-weight: 700; border-radius: 4px; border: none; background: var(--primary-color); color: white; cursor: pointer;">TF</button>
+                            <button class="mode-btn" data-mode="TI" style="padding: 2px 8px; font-size: 10px; font-weight: 700; border-radius: 4px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer;">TI</button>
+                        </div>
+
+                        <!-- Interval Buttons for TF mode (Time) -->
+                        <div class="interval-group group-tf" style="display: inline-flex; gap: 4px; align-items: center;">
+                            <button class="tf-btn active" data-tf="15S">15s</button>
+                            <button class="tf-btn" data-tf="30S">30s</button>
+                            <button class="tf-btn" data-tf="45S">45s</button>
+                            <button class="tf-btn" data-tf="1">1m</button>
+                            <button class="tf-btn" data-tf="2">2m</button>
+                            <button class="tf-btn" data-tf="3">3m</button>
+                            <button class="tf-btn" data-tf="5">5m</button>
+                        </div>
+
+                        <!-- Interval Buttons for TI mode (Ticks) -->
+                        <div class="interval-group group-ti" style="display: none; gap: 4px; align-items: center;">
+                            <button class="tf-btn" data-tf="100T">100T</button>
+                            <button class="tf-btn" data-tf="200T">200T</button>
+                            <button class="tf-btn" data-tf="400T">400T</button>
+                            <button class="tf-btn" data-tf="1000T">1000T</button>
+                        </div>
+
+                        <!-- RSI Divergence Controls -->
+                        <div class="rsi-control-group" style="margin-left: auto; display: flex; gap: 4px; align-items: center;">
+                            <button class="tf-btn btn-rsi-toggle" title="Activer / Désactiver RSI Divergence" style="display: flex; align-items: center; gap: 4px;">
+                                <i class="fa-solid fa-chart-line"></i> RSI Div
+                            </button>
+                            <button class="tf-btn btn-rsi-config" title="Paramètres RSI Divergence" style="padding: 6px 8px;">
+                                <i class="fa-solid fa-sliders"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
@@ -311,6 +474,11 @@
                 </div>
                 <!-- Unified Graph Console Card -->
                 <div class="scalp-console-card" id="graph-scalp-console-card" style="margin-top: 10px;">
+                    <!-- Trading Consigne Banner -->
+                    <div id="graph-consigne-banner" style="display: none; padding: 8px 12px; margin-bottom: 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-align: center; border: 1px solid transparent; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span id="graph-consigne-text">Normal</span>
+                    </div>
                     <!-- Top Row: Live Bid/Ask Interactive Buttons -->
                     <div class="live-action-buttons">
                         <button class="live-btn live-buy-btn" id="graph-buy-btn">
@@ -368,19 +536,27 @@
                             <div class="preset-selector" id="graph-type-presets">
                                 <button class="preset-btn active" data-val="market">Market</button>
                                 <button class="preset-btn" data-val="limit">Limit</button>
+                                <button class="preset-btn" data-val="l10" title="Ordre limite à 10 pips (-10p Long / +10p Short)">L10</button>
                             </div>
                         </div>
 
                         <!-- PRICE Panel -->
                         <div class="scalp-param-panel" id="panel-graph-price">
-                            <label class="panel-title">Prix cible</label>
-                            <div class="preset-selector">
-                                <button class="preset-btn graph-price-adjust-btn" data-change="-10">-10</button>
-                                <button class="preset-btn graph-price-adjust-btn" data-change="-1">-1</button>
-                                <button class="preset-btn graph-price-adjust-btn" data-change="1">+1</button>
-                                <button class="preset-btn graph-price-adjust-btn" data-change="10">+10</button>
-                                <div class="custom-input-wrapper">
-                                    <input type="number" id="graph-input-limit-price" step="0.1" value="0" placeholder="Prix">
+                            <label class="panel-title">Mode de prix limite</label>
+                            <div class="preset-selector" id="graph-price-mode-presets" style="margin-bottom: 8px;">
+                                <button class="preset-btn active" data-val="limit">Prix fixe</button>
+                                <button class="preset-btn" data-val="l10" title="Ordre limite à 10 pips (-10p Long / +10p Short)">L10 (±10 pips)</button>
+                            </div>
+                            <div id="graph-price-fixed-controls">
+                                <label class="panel-title" style="margin-top: 4px; font-size: 10px; color: var(--text-muted);">Ajustement prix fixe</label>
+                                <div class="preset-selector">
+                                    <button class="preset-btn graph-price-adjust-btn" data-change="-10">-10</button>
+                                    <button class="preset-btn graph-price-adjust-btn" data-change="-1">-1</button>
+                                    <button class="preset-btn graph-price-adjust-btn" data-change="1">+1</button>
+                                    <button class="preset-btn graph-price-adjust-btn" data-change="10">+10</button>
+                                    <div class="custom-input-wrapper">
+                                        <input type="number" id="graph-input-limit-price" step="0.1" value="0" placeholder="Prix">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -491,6 +667,10 @@
                 <i class="fa-solid fa-book"></i>
                 <span>Journal</span>
             </button>
+            <button class="nav-item" data-tab="tab-levels">
+                <i class="fa-solid fa-layer-group"></i>
+                <span>Niveaux</span>
+            </button>
             <button class="nav-item" data-tab="tab-config">
                 <i class="fa-solid fa-gears"></i>
                 <span>Config</span>
@@ -564,6 +744,70 @@
             </div>
         </div>
 
+        <!-- Modal: Paramètres RSI Divergence -->
+        <div class="modal-overlay" id="rsi-config-modal">
+            <div class="modal-sheet" style="max-width: 420px; border-radius: var(--radius-lg);">
+                <div class="modal-header">
+                    <h3 style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-sliders" style="color: var(--primary-color);"></i>
+                        RSI divergence
+                    </h3>
+                    <button class="close-modal-btn" id="close-rsi-modal-x"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block;">RSI Period</label>
+                            <input type="number" id="rsi-cfg-period" min="1" max="100" value="14" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-weight: 700;">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block;">Pivot Lookback Right</label>
+                            <input type="number" id="rsi-cfg-right" min="1" max="20" value="5" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-weight: 700;">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block;">Pivot Lookback Left</label>
+                            <input type="number" id="rsi-cfg-left" min="1" max="20" value="5" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-weight: 700;">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block;">Max of Lookback Range</label>
+                            <input type="number" id="rsi-cfg-max-range" min="5" max="200" value="60" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-weight: 700;">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block;">Min of Lookback Range</label>
+                            <input type="number" id="rsi-cfg-min-range" min="1" max="50" value="5" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-primary); font-weight: 700;">
+                        </div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                        <label style="font-size: 12px; display: flex; align-items: center; gap: 8px; color: var(--text-primary); cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="rsi-cfg-bullish" checked style="accent-color: var(--primary-color); width: 16px; height: 16px;">
+                            Plot Bullish
+                        </label>
+                        <label style="font-size: 12px; display: flex; align-items: center; gap: 8px; color: var(--text-primary); cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="rsi-cfg-hbullish" style="accent-color: var(--primary-color); width: 16px; height: 16px;">
+                            Plot Hidden Bullish
+                        </label>
+                        <label style="font-size: 12px; display: flex; align-items: center; gap: 8px; color: var(--text-primary); cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="rsi-cfg-bearish" checked style="accent-color: var(--primary-color); width: 16px; height: 16px;">
+                            Plot Bearish
+                        </label>
+                        <label style="font-size: 12px; display: flex; align-items: center; gap: 8px; color: var(--text-primary); cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="rsi-cfg-hbearish" style="accent-color: var(--primary-color); width: 16px; height: 16px;">
+                            Plot Hidden Bearish
+                        </label>
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 6px;">
+                        <button type="button" class="btn btn-primary" id="btn-save-rsi-config" style="flex: 1; padding: 10px; font-weight: 700; font-size: 12px; border-radius: 6px; background: var(--primary-color); color: white; border: none; cursor: pointer;">
+                            Ok
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Toast Notifications Container -->
         <div class="toast-container" id="toast-container"></div>
         
@@ -573,6 +817,6 @@
     <script src="/static/js/lightweight-charts.js"></script>
     
     <!-- Application Script -->
-    <script src="/static/js/app.js?v=120"></script>
+    <script src="/static/js/app.js?v=138"></script>
 </body>
 </html>
