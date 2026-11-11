@@ -1,3 +1,4 @@
+*.db
 *.log
 autobe_positions.json
 __pycache__/
