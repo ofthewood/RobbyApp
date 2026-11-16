@@ -13,7 +13,7 @@
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom Style Sheet -->
-    <link rel="stylesheet" href="/static/css/style.css?v=84">
+    <link rel="stylesheet" href="/static/css/style.css?v=93">
 </head>
 <body>
     <!-- App Main Container -->
@@ -45,6 +45,79 @@
             
             <!-- Obsolete Scalp and Positions tabs removed (their features are consolidated in the Trade tab) -->
             
+            <!-- TAB: DASHBOARD (PRO FRAMEWORK MATRICE) -->
+            <section id="tab-dashboard" class="tab-content">
+                <div class="dashboard-container-card">
+                    <!-- Dashboard Top Bar: Title, Live Status & Quick Action Buttons -->
+                    <div class="dashboard-top-bar">
+                        <div class="dashboard-title-box">
+                            <span class="dashboard-live-dot"></span>
+                            <h2 class="dashboard-title">Dashboard Multi-Indices</h2>
+                            <span class="tv-badge-status" id="dashboard-tv-status">En direct</span>
+                        </div>
+                        <div class="dashboard-top-actions">
+                            <button type="button" class="btn btn-sm btn-outline" id="btn-refresh-dashboard" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-card); cursor: pointer;"><i class="fa-solid fa-arrows-rotate"></i> Actualiser</button>
+                            <a href="https://eliseo-deserticolous-catina.ngrok-free.dev/monitor#alerts" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-card); text-decoration: none; color: var(--text-primary);" title="Explorer la base de données SQLite (alertes et indicateurs)"><i class="fa-solid fa-database"></i> Explorer Data</a>
+                            <a href="https://eliseo-deserticolous-catina.ngrok-free.dev/monitor" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-card); text-decoration: none; color: var(--text-primary);"><i class="fa-solid fa-arrow-up-right-from-square"></i> Logs TV</a>
+                        </div>
+                    </div>
+
+                    <!-- Multi-Timeframe Matrix Table (GER40, NAS100, USA500) -->
+                    <div class="dashboard-matrix-wrapper">
+                        <table class="dashboard-matrix-table" id="dashboard-matrix-table">
+                            <thead id="dashboard-matrix-thead">
+                                <!-- Dynamic headers: 6 indices with 2 subcolumns each -->
+                            </thead>
+                            <tbody id="dashboard-matrix-tbody">
+                                <!-- Dynamic rows: 4H, 1H, 15m, 5m, 2m, 1m -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Visual Legend explaining the colors and icons (positioned below the table) -->
+                    <div class="dashboard-legend-container">
+                        <div class="legend-group">
+                            <span class="legend-group-title">Tendance :</span>
+                            <span class="legend-pill trend-bull-dark">MA &lt; Sup DN</span>
+                            <span class="legend-pill trend-bull-light">MA in Sup</span>
+                            <span class="legend-pill trend-range">Range</span>
+                            <span class="legend-pill trend-bear-light">MA in Res</span>
+                            <span class="legend-pill trend-bear-dark">MA &gt; Res UP</span>
+                            <span class="legend-pill matrix-cell-nodata" style="opacity: 1; border: 1px dashed #cbd5e1; border-radius: 3px;">Attente TV</span>
+                        </div>
+                        <div class="legend-group">
+                            <span class="legend-group-title">Pression :</span>
+                            <span class="legend-pill press-buy-dark">Prix &gt; Res UP</span>
+                            <span class="legend-pill press-buy-light">Prix in Res</span>
+                            <span class="legend-pill press-neutral">Neutre</span>
+                            <span class="legend-pill press-sell-light">Prix in Sup</span>
+                            <span class="legend-pill press-sell-dark">Prix &lt; Sup DN</span>
+                        </div>
+                        <div class="legend-group">
+                            <span class="legend-group-title">Alertes (10 bougies) :</span>
+                            <span class="legend-pill" style="background:#eef2ff;"><span class="sig-triangle sig-bull">▲<span class="sig-age">0</span></span> Bull</span>
+                            <span class="legend-pill" style="background:#fef2f2;"><span class="sig-triangle sig-bear">▼<span class="sig-age">0</span></span> Bear</span>
+                            <span class="legend-pill" style="background:#eef2ff;"><span class="sig-triangle sig-bull">▲<span class="sig-inv-flag">i</span><span class="sig-age">1</span></span> Invalidé</span>
+                            <span class="legend-pill" style="background:#ecfdf5;"><span class="sig-pill sig-tp-bull">TP▲0</span> TP</span>
+                            <span class="legend-pill" style="background:#fffbeb;"><span class="sig-pill sig-exit-bull">EXT▲0</span> Exit</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detail Modal for inspecting all 61 indicators when clicking a cell -->
+                <div class="modal-overlay" id="dashboard-cell-modal" style="display:none;" onclick="closeDashboardModal(event)">
+                    <div class="modal-content" style="max-width: 750px; max-height: 85vh; background: var(--bg-card); border-radius: 12px; padding: 18px; border: 1px solid var(--border-color); box-shadow: var(--shadow-lg); overflow-y: auto;" onclick="event.stopPropagation()">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 14px;">
+                            <h3 id="cell-modal-title" style="margin: 0; font-size: 16px; font-weight: 700;">Détails Indicateurs</h3>
+                            <button type="button" class="close-modal-btn" onclick="closeDashboardModal()"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div id="cell-modal-content">
+                            <!-- Populated on click -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- TAB: JOURNAL & STATS -->
             <section id="tab-journal" class="tab-content">
                 <div class="journal-layout-wrapper">
@@ -351,6 +424,31 @@
                             <div class="detail-row"><span>Solde:</span> <span id="acc-bal-short">-</span></div>
                             <div class="detail-row"><span>Levier:</span> <span id="acc-lev-short">-</span></div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- TradingView Webhook & Monitoring Card -->
+                <div class="param-card details-card" style="margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h3 style="margin-bottom: 0;"><i class="fa-solid fa-satellite-dish" style="color: var(--primary-color); margin-right: 8px;"></i>Monitor & Base de Données TradingView</h3>
+                        <span style="background: rgba(38, 166, 154, 0.15); color: #26a69a; border: 1px solid rgba(38, 166, 154, 0.4); padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Port 8020 Actif</span>
+                    </div>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px; line-height: 1.4;">
+                        Consultez l'activité temps réel des webhooks, explorez la base SQLite des alertes stockées, visualisez les instantanés d'indicateurs de chaque cellule ou téléchargez l'historique complet en CSV/SQLite.
+                    </p>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <a href="https://eliseo-deserticolous-catina.ngrok-free.dev/monitor#alerts" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 13px; padding: 9px 16px; border-radius: 6px;">
+                            <i class="fa-solid fa-database"></i> Consulter la Base SQLite (Data Explorer)
+                        </a>
+                        <a href="https://eliseo-deserticolous-catina.ngrok-free.dev/monitor" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 13px; padding: 9px 16px; border-radius: 6px; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary);">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Logs Webhooks Live
+                        </a>
+                        <a href="/api/v1/data/alerts/export.csv" target="_blank" download class="btn btn-outline" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 13px; padding: 9px 16px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);" title="Exporter toutes les alertes en CSV Excel">
+                            <i class="fa-solid fa-file-csv" style="color: #26a69a;"></i> Exporter Alertes CSV
+                        </a>
+                        <a href="/api/v1/data/db/download" target="_blank" download class="btn btn-outline" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 13px; padding: 9px 16px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary);" title="Télécharger le fichier SQLite tv_data.db brut">
+                            <i class="fa-solid fa-download"></i> Télécharger tv_data.db
+                        </a>
                     </div>
                 </div>
             </section>
@@ -663,6 +761,10 @@
                 <i class="fa-solid fa-chart-line"></i>
                 <span>Trade</span>
             </button>
+            <button class="nav-item" data-tab="tab-dashboard">
+                <i class="fa-solid fa-table-cells-large"></i>
+                <span>Dashboard</span>
+            </button>
             <button class="nav-item" data-tab="tab-journal">
                 <i class="fa-solid fa-book"></i>
                 <span>Journal</span>
@@ -817,6 +919,6 @@
     <script src="/static/js/lightweight-charts.js"></script>
     
     <!-- Application Script -->
-    <script src="/static/js/app.js?v=138"></script>
+    <script src="/static/js/app.js?v=153"></script>
 </body>
 </html>

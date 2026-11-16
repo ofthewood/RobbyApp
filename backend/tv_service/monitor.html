@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradingView Webhook Monitor & Data Explorer</title>
+    <style>
+        :root {
+            --bg-dark: #131722;
+            --bg-card: #1e222d;
+            --bg-hover: #262b3e;
+            --border: #2a2e39;
+            --text-main: #d1d4dc;
+            --text-muted: #787b86;
+            --green: #26a69a;
+            --red: #ef5350;
+            --yellow: #f0ad4e;
+            --blue: #2962ff;
+            --teal: #00bcd4;
+            --purple: #ab47bc;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            padding: 16px;
+            font-size: 13px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .header-title { display: flex; align-items: center; gap: 10px; }
+        .header-title h1 { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -0.2px; }
+        .pulse-dot {
+            width: 9px; height: 9px; background: var(--green);
+            border-radius: 50%; display: inline-block;
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        .header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        
+        button {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 7px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s ease;
+            text-decoration: none;
+        }
+        button:hover { background: var(--bg-hover); border-color: var(--text-muted); color: #fff; }
+        button.btn-primary { background: #2962ff; border-color: #2962ff; color: #fff; }
+        button.btn-primary:hover { background: #1e53e5; }
+        button.btn-success { background: rgba(38, 166, 154, 0.2); border-color: var(--green); color: var(--green); }
+        button.btn-success:hover { background: var(--green); color: #fff; }
+        button.btn-danger { background: rgba(239, 83, 80, 0.15); border-color: var(--red); color: var(--red); }
+        button.btn-danger:hover { background: var(--red); color: #fff; }
+
+        /* Main Navigation Tabs */
+        .tabs-nav {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 18px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 2px;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            border-radius: 4px 4px 0 0;
+            color: var(--text-muted);
+            padding: 9px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+        .tab-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .tab-btn.active {
+            color: #fff;
+            border-bottom-color: var(--blue);
+            background: rgba(41, 98, 255, 0.12);
+        }
+        .tab-badge {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 700;
+        }
+        .tab-btn.active .tab-badge {
+            background: var(--blue);
+            color: #fff;
+        }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 14px;
+        }
+        .kpi-label { font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 6px; }
+        .kpi-value { font-size: 22px; font-weight: bold; color: #fff; }
+        .kpi-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .search-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 7px 12px;
+            color: #fff;
+            font-size: 12px;
+            width: 220px;
+        }
+        .search-box:focus { outline: none; border-color: var(--blue); }
+
+        .filter-select {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 6px 10px;
+            color: #fff;
+            font-size: 12px;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .filter-select:focus { border-color: var(--blue); }
+        .filter-select option { background: #181c27; color: #fff; }
+
+        .btn-reset {
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-muted);
+            padding: 6px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-reset:hover {
+            color: #fff;
+            border-color: var(--blue);
+            background: rgba(41, 98, 255, 0.1);
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .table-responsive { overflow-x: auto; max-height: 650px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th {
+            background: #181c27;
+            color: var(--text-muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 10px 14px;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            border-bottom: 1px solid var(--border);
+        }
+        th.th-sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.15s ease;
+        }
+        th.th-sortable:hover {
+            background: #232838;
+            color: #fff;
+        }
+        .th-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .sort-icon {
+            font-size: 11px;
+            color: var(--text-muted);
+            opacity: 0.45;
+            transition: all 0.15s ease;
+        }
+        th.th-sortable:hover .sort-icon {
+            opacity: 0.9;
+            color: #fff;
+        }
+        th.th-sortable.sorted {
+            color: #fff;
+            border-bottom: 2px solid var(--blue);
+            background: rgba(41, 98, 255, 0.08);
+        }
+        th.th-sortable.sorted .sort-icon {
+            color: var(--blue);
+            opacity: 1;
+            font-weight: bold;
+        }
+        td {
+            padding: 9px 14px;
+            border-bottom: 1px solid rgba(42, 46, 57, 0.6);
+            white-space: nowrap;
+        }
+        tr:hover td { background: var(--bg-hover); }
+        .badge {
+            display: inline-block;
+            padding: 2px 7px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-sym { background: rgba(41, 98, 255, 0.2); color: #82b1ff; border: 1px solid rgba(41, 98, 255, 0.4); }
+        .badge-tf { background: rgba(255, 255, 255, 0.08); color: #fff; }
+        .badge-success { background: rgba(38, 166, 154, 0.15); color: var(--green); border: 1px solid rgba(38, 166, 154, 0.3); }
+        .badge-alert { background: rgba(239, 83, 80, 0.15); color: var(--red); border: 1px solid rgba(239, 83, 80, 0.4); font-weight: bold; }
+        .badge-tv { background: rgba(240, 173, 78, 0.15); color: var(--yellow); font-size: 10px; }
+        .badge-bull { background: rgba(38, 166, 154, 0.15); color: var(--green); border: 1px solid rgba(38, 166, 154, 0.3); }
+        .badge-bear { background: rgba(239, 83, 80, 0.15); color: var(--red); border: 1px solid rgba(239, 83, 80, 0.3); }
+        .badge-tp { background: rgba(0, 188, 212, 0.15); color: var(--teal); border: 1px solid rgba(0, 188, 212, 0.3); }
+        .badge-exit { background: rgba(240, 173, 78, 0.15); color: var(--yellow); border: 1px solid rgba(240, 173, 78, 0.3); }
+
+        /* Pagination Bar */
+        .pagination-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #181c27;
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .pagination-actions { display: flex; gap: 8px; align-items: center; }
+
+        /* Cells Grid */
+        .cells-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 14px;
+        }
+        .cell-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 14px;
+            transition: all 0.2s ease;
+        }
+        .cell-card:hover {
+            border-color: var(--blue);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .cell-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(42, 46, 57, 0.6);
+            padding-bottom: 8px;
+        }
+        .cell-title { display: flex; gap: 6px; align-items: center; }
+        .cell-stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+        .cell-stats-label { color: var(--text-muted); }
+        .cell-stats-val { color: #fff; font-family: monospace; font-weight: 600; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            display: none; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            width: 850px; max-width: 95vw; max-height: 85vh;
+            display: flex; flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .modal-header {
+            padding: 14px 18px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-body {
+            padding: 16px; overflow-y: auto; flex: 1;
+            background: #11141c;
+        }
+        pre { font-family: "Consolas", monospace; font-size: 12px; color: #a9b7c6; white-space: pre-wrap; word-break: break-all; }
+        .close-btn { background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; }
+        .close-btn:hover { color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-title">
+                <span class="pulse-dot"></span>
+                <h1>TradingView Data Explorer & Webhook Monitor</h1>
+                <span style="font-size: 11px; background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 3px; color: var(--text-muted);">Port 8020</span>
+            </div>
+            <div class="header-actions">
+                <span id="auto-refresh-label" style="font-size: 11px; color: var(--text-muted);">Live (1.5s)</span>
+                <button onclick="toggleAutoRefresh()" id="btn-toggle-refresh">Pause</button>
+                <button onclick="simulateTest()" class="btn-primary">⚡ Simuler Alerte</button>
+                <a href="/api/v1/data/alerts/export.csv" id="btn-export-csv-link" target="_blank" download style="text-decoration: none;">
+                    <button type="button" class="btn-success">📥 Exporter CSV</button>
+                </a>
+                <a href="/api/v1/data/db/download" target="_blank" download style="text-decoration: none;">
+                    <button type="button">💾 Télécharger tv_data.db</button>
+                </a>
+                <button onclick="triggerPurge(5)" title="Purger les alertes et requêtes de plus de 5 jours" class="btn-primary" style="background: rgba(245, 158, 11, 0.15); border-color: #f59e0b; color: #f59e0b;">🧹 Purge 5J</button>
+                <button onclick="clearLogs()" class="btn-danger">🗑️ Vider Logs</button>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tabs-nav">
+            <button class="tab-btn active" id="btn-tab-live" onclick="showTab('live')">
+                📡 Requêtes Webhook (tv_requests) <span class="tab-badge" id="tab-badge-live">0</span>
+            </button>
+            <button class="tab-btn" id="btn-tab-alerts" onclick="showTab('alerts')">
+                🗄️ Base des Alertes SQLite <span class="tab-badge" id="tab-badge-alerts">0</span>
+            </button>
+            <button class="tab-btn" id="btn-tab-cells" onclick="showTab('cells')">
+                📊 Cellules & Indicateurs Stockés <span class="tab-badge" id="tab-badge-cells">18</span>
+            </button>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- TAB 1: REQUETES WEBHOOK LIVE -->
+        <!-- ============================================================= -->
+        <div id="panel-live" class="tab-panel active">
+            <!-- KPI Grid -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">Total Requêtes Reçues</div>
+                    <div class="kpi-value" id="kpi-total">0</div>
+                    <div class="kpi-sub">Depuis le démarrage</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Requêtes Réussies (200 OK)</div>
+                    <div class="kpi-value" style="color: var(--green);" id="kpi-success">0</div>
+                    <div class="kpi-sub">Traitées & indexées</div>
+                </div>
+                <div class="kpi-card" onclick="toggleAlertsFilter()" style="cursor: pointer;" title="Cliquer pour afficher uniquement les alertes">
+                    <div class="kpi-label">Alertes Déclenchées 👆</div>
+                    <div class="kpi-value" style="color: var(--yellow);" id="kpi-alerts">0</div>
+                    <div class="kpi-sub">Cliquer pour filtrer</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Dernière Requête</div>
+                    <div class="kpi-value" style="font-size: 20px;" id="kpi-last">--:--:--</div>
+                    <div class="kpi-sub" id="kpi-last-ip">Aucun signal reçu</div>
+                </div>
+            </div>
+
+            <!-- Table Toolbar -->
+            <div class="toolbar">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <h2 style="font-size: 14px; font-weight: 600; margin: 0;">Journal des Requêtes Webhook (Persistées dans tv_requests)</h2>
+                    <span id="filter-count" style="font-size: 11px; color: var(--text-muted); background: var(--bg-hover); padding: 2px 7px; border-radius: 3px;">0 requêtes</span>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <!-- Filtre Symbole -->
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">SYM :</span>
+                        <select id="filter-symbol" class="filter-select" onchange="filterTable()" title="Filtrer par symbole">
+                            <option value="">Tous les symboles</option>
+                            <option value="GER40">GER40</option>
+                            <option value="NAS100">NAS100</option>
+                            <option value="USA500">USA500 (SPX500)</option>
+                            <option value="US30">US30</option>
+                            <option value="FRA40">FRA40</option>
+                            <option value="UK100">UK100</option>
+                        </select>
+                    </div>
+
+                    <!-- Filtre Timeframe -->
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">UT :</span>
+                        <select id="filter-tf" class="filter-select" onchange="filterTable()" title="Filtrer par timeframe">
+                            <option value="">Tous timeframes</option>
+                            <option value="1m">1m</option>
+                            <option value="2m">2m</option>
+                            <option value="3m">3m</option>
+                            <option value="5m">5m</option>
+                            <option value="15m">15m</option>
+                            <option value="30m">30m</option>
+                            <option value="1h">1h</option>
+                            <option value="2h">2h</option>
+                            <option value="4h">4h</option>
+                            <option value="d">D (Daily)</option>
+                            <option value="w">W (Weekly)</option>
+                        </select>
+                    </div>
+
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; user-select: none; color: #fff; background: var(--bg-card); border: 1px solid var(--border); padding: 6px 10px; border-radius: 4px;">
+                        <input type="checkbox" id="filter-alerts-only" onchange="filterTable()" style="cursor: pointer; accent-color: var(--red);">
+                        🚨 Alertes
+                    </label>
+
+                    <input type="text" id="filter-input" class="search-box" style="width: 170px;" placeholder="Recherche libre..." onkeyup="filterTable()">
+
+                    <a href="/api/v1/data/requests/export.csv" download style="text-decoration: none;">
+                        <button type="button" class="btn-primary" style="padding: 6px 12px; font-size: 12px;">📥 Exporter CSV</button>
+                    </a>
+
+                    <button onclick="resetFilters()" class="btn-reset" title="Réinitialiser tous les filtres">↺ Reset</button>
+                </div>
+            </div>
+
+            <!-- Logs Table -->
+            <div class="card">
+                <div class="table-responsive">
+                    <table id="live-requests-table">
+                        <thead>
+                            <tr>
+                                <th class="th-sortable sorted" data-sort="received_at" onclick="sortLiveTable('received_at')" title="Cliquer pour trier par heure de réception">
+                                    <span class="th-wrap">Heure Réception <span class="sort-icon">▼</span></span>
+                                </th>
+                                <th class="th-sortable" data-sort="candle_time" onclick="sortLiveTable('candle_time')" title="Cliquer pour trier par heure de la bougie (timestamp webhook)">
+                                    <span class="th-wrap">Heure Bougie <span class="sort-icon">⇅</span></span>
+                                </th>
+                                <th class="th-sortable" data-sort="symbol" onclick="sortLiveTable('symbol')" title="Cliquer pour trier par symbole">
+                                    <span class="th-wrap">Symbole <span class="sort-icon">⇅</span></span>
+                                </th>
+                                <th class="th-sortable" data-sort="tf" onclick="sortLiveTable('tf')" title="Cliquer pour trier par timeframe">
+                                    <span class="th-wrap">Timeframe <span class="sort-icon">⇅</span></span>
+                                </th>
+                                <th class="th-sortable" data-sort="alerts" onclick="sortLiveTable('alerts')" title="Cliquer pour trier par nombre d'alertes">
+                                    <span class="th-wrap">Alertes <span class="sort-icon">⇅</span></span>
+                                </th>
+                                <th class="th-sortable" data-sort="price" onclick="sortLiveTable('price')" title="Cliquer pour trier par prix détecté">
+                                    <span class="th-wrap">Prix Détecté <span class="sort-icon">⇅</span></span>
+                                </th>
+                                <th class="th-sortable" data-sort="metrics" onclick="sortLiveTable('metrics')" title="Cliquer pour trier par nombre d'indicateurs">
+                                    <span class="th-wrap">Indicateurs <span class="sort-icon">⇅</span></span>
+                                </th>
+                                <th class="th-sortable" data-sort="duration" onclick="sortLiveTable('duration')" title="Cliquer pour trier par latence">
+                                    <span class="th-wrap">Latence <span class="sort-icon">⇅</span></span>
+                                </th>
+                                <th>Détails</th>
+                                <th class="th-sortable" data-sort="ip" onclick="sortLiveTable('ip')" title="Cliquer pour trier par IP source">
+                                    <span class="th-wrap">IP Source <span class="sort-icon">⇅</span></span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="requests-tbody">
+                            <tr>
+                                <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                                    En attente de signaux TradingView...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- TAB 2: BASE DES ALERTES SQLITE (tv_alerts) -->
+        <!-- ============================================================= -->
+        <div id="panel-alerts" class="tab-panel">
+            <!-- DB KPIs -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">Total Alertes en Base</div>
+                    <div class="kpi-value" style="color: var(--yellow);" id="kpi-db-total">0</div>
+                    <div class="kpi-sub">Historique persistant SQLite</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Rétention & Taille DB</div>
+                    <div class="kpi-value" id="kpi-db-size">0 KB</div>
+                    <div class="kpi-sub" id="kpi-db-path">🛡️ 5 jours glissants</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Cellules Matricées</div>
+                    <div class="kpi-value" style="color: var(--teal);" id="kpi-db-cells">18</div>
+                    <div class="kpi-sub">Indicateurs temps réel</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Dernière Alerte Enregistrée</div>
+                    <div class="kpi-value" style="font-size: 16px; color: #fff;" id="kpi-db-last-alert">--</div>
+                    <div class="kpi-sub" id="kpi-db-last-rule">Aucune alerte</div>
+                </div>
+            </div>
+
+            <!-- Stored Alerts Toolbar -->
+            <div class="toolbar">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <h2 style="font-size: 14px; font-weight: 600; margin: 0;">Historique des Alertes Stockées (Table tv_alerts)</h2>
+                    <span id="db-alerts-counter" style="font-size: 11px; color: var(--text-muted); background: var(--bg-hover); padding: 2px 7px; border-radius: 3px;">0 alertes</span>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <!-- Filtre Symbole DB -->
+                    <select id="db-filter-sym" class="filter-select" onchange="applyDbFilters()">
+                        <option value="">Tous les symboles</option>
+                        <option value="GER40">GER40</option>
+                        <option value="NAS100">NAS100</option>
+                        <option value="USA500">USA500 (SPX500)</option>
+                        <option value="US30">US30</option>
+                        <option value="FRA40">FRA40</option>
+                        <option value="UK100">UK100</option>
+                    </select>
+
+                    <!-- Filtre TF DB -->
+                    <select id="db-filter-tf" class="filter-select" onchange="applyDbFilters()">
+                        <option value="">Toutes UT</option>
+                        <option value="1m">1m</option>
+                        <option value="2m">2m</option>
+                        <option value="3m">3m</option>
+                        <option value="5m">5m</option>
+                        <option value="15m">15m</option>
+                        <option value="30m">30m</option>
+                        <option value="1h">1h</option>
+                        <option value="2h">2h</option>
+                        <option value="4h">4h</option>
+                        <option value="d">D (Daily)</option>
+                        <option value="w">W (Weekly)</option>
+                    </select>
+
+                    <!-- Filtre Règle DB -->
+                    <select id="db-filter-rule" class="filter-select" onchange="applyDbFilters()">
+                        <option value="">Tous types d'alertes</option>
+                        <option value="Bull Confirmation Signal">Bull Confirmation Signal (▲)</option>
+                        <option value="Bear Confirmation Signal">Bear Confirmation Signal (▼)</option>
+                        <option value="Bull TP Signals">Bull TP Signals (TP▲)</option>
+                        <option value="Bear TP Signals">Bear TP Signals (TP▼)</option>
+                        <option value="Bull EXIT Signals">Bull EXIT Signals (EXT▲)</option>
+                        <option value="Bear EXIT Signals">Bear EXIT Signals (EXT▼)</option>
+                        <option value="BULL Signals">BULL Signals</option>
+                        <option value="BEAR Signals">BEAR Signals</option>
+                        <option value="PRICE SQUEEZE Alert">PRICE SQUEEZE Alert</option>
+                        <option value="VOLATILITY SURGE">VOLATILITY SURGE</option>
+                        <option value="TREND EXHAUSTION">TREND EXHAUSTION</option>
+                    </select>
+
+                    <input type="text" id="db-filter-search" class="search-box" style="width: 170px;" placeholder="Recherche texte..." onkeydown="if(event.key==='Enter') applyDbFilters()">
+
+                    <button onclick="applyDbFilters()" class="btn-primary" style="padding: 6px 12px;">Filtrer</button>
+                    <button onclick="resetDbFilters()" class="btn-reset">↺ Reset</button>
+                </div>
+            </div>
+
+            <!-- Stored Alerts Table -->
+            <div class="card">
+                <div class="table-responsive">
+                    <table id="db-alerts-table">
+                        <thead>
+                            <tr>
+                                <th class="th-sortable sorted" data-sort="timestamp" onclick="sortDbAlerts('timestamp')" title="Cliquer pour trier par date & heure">
+                                    <span class="th-wrap">Date & Heure <span class="sort-icon">▼</span></span>
+                                </th>
+                                <th class="th-sortable" data-sort="symbol" onclick="sortDbAlerts('symbol')" title="Cliquer pour trier par symbole">
+                                    <span class="th-wrap">Symbole <span class="sort-icon">⇅</span></span>
+                                </th>
+                                <th class="th-sortable" data-sort="tf" onclick="sortDbAlerts('tf')" title="Cliquer pour trier par UT (timeframe)">
+                                    <span class="th-wrap">UT <span class="sort-icon">⇅</span></span>
+                                </th>
+                                <th class="th-sortable" data-sort="rule_name" onclick="sortDbAlerts('rule_name')" title="Cliquer pour trier par nom d'alerte">
+                                    <span class="th-wrap">Nom de l'Alerte <span class="sort-icon">⇅</span></span>
+                                </th>
+                                <th class="th-sortable" data-sort="price" onclick="sortDbAlerts('price')" title="Cliquer pour trier par prix">
+                                    <span class="th-wrap">Prix <span class="sort-icon">⇅</span></span>
+                                </th>
+                                <th class="th-sortable" data-sort="value" onclick="sortDbAlerts('value')" title="Cliquer pour trier par valeur / décalage">
+                                    <span class="th-wrap">Décalage (Bars) <span class="sort-icon">⇅</span></span>
+                                </th>
+                                <th>Détails Indicateurs</th>
+                            </tr>
+                        </thead>
+                        <tbody id="db-alerts-tbody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                                    Chargement des alertes depuis la base SQLite...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination Bar -->
+                <div class="pagination-bar">
+                    <div id="db-pagination-info">Affichage des alertes...</div>
+                    <div class="pagination-actions">
+                        <select id="db-page-size" class="filter-select" onchange="changeDbPageSize()" style="padding: 4px 8px; font-size: 11px;">
+                            <option value="25">25 / page</option>
+                            <option value="50" selected>50 / page</option>
+                            <option value="100">100 / page</option>
+                        </select>
+                        <button onclick="prevDbPage()" id="btn-db-prev" disabled>◀ Précédent</button>
+                        <span id="db-page-curr" style="color: #fff; font-weight: 600; padding: 0 4px;">Page 1</span>
+                        <button onclick="nextDbPage()" id="btn-db-next">Suivant ▶</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================= -->
+        <!-- TAB 3: CELLULES & INDICATEURS STOCKES (tv_cells) -->
+        <!-- ============================================================= -->
+        <div id="panel-cells" class="tab-panel">
+            <div class="toolbar">
+                <div>
+                    <h2 style="font-size: 14px; font-weight: 600; margin: 0;">Instantanés des Indicateurs par Cellule (18 combinaisons Symbole × UT)</h2>
+                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                        Chaque cellule contient le dernier état complet de tous les indicateurs (60+ métriques par timeframe) persisté en SQLite.
+                    </p>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <select id="cells-filter-sym" class="filter-select" onchange="renderStoredCellsGrid()">
+                        <option value="">Tous les symboles</option>
+                        <option value="GER40">GER40</option>
+                        <option value="NAS100">NAS100</option>
+                        <option value="USA500">USA500 (SPX500)</option>
+                        <option value="US30">US30</option>
+                        <option value="FRA40">FRA40</option>
+                        <option value="UK100">UK100</option>
+                    </select>
+                    <select id="cells-filter-tf" class="filter-select" onchange="renderStoredCellsGrid()">
+                        <option value="">Toutes UT</option>
+                        <option value="1m">1m</option>
+                        <option value="2m">2m</option>
+                        <option value="5m">5m</option>
+                        <option value="15m">15m</option>
+                        <option value="1h">1h</option>
+                        <option value="4h">4h</option>
+                    </select>
+                    <button onclick="loadStoredCells()" class="btn-primary" style="padding: 6px 12px;">🔄 Actualiser</button>
+                </div>
+            </div>
+
+            <div class="cells-grid" id="cells-grid-container">
+                <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 40px;">
+                    Chargement des cellules...
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JSON Preview Modal -->
+    <div class="modal-overlay" id="json-modal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 style="font-size: 14px; color: #fff;" id="modal-title">Payload JSON</h3>
+                <div style="display:flex; gap: 8px;">
+                    <button onclick="copyModalJson()">📋 Copier</button>
+                    <button class="close-btn" onclick="closeModal()">&times;</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <pre id="modal-json-content"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefresh = true;
+        let refreshInterval = null;
+        let cachedRequests = [];
+        let activeTab = 'live';
+
+        // Live Requests Sorting state
+        let liveSortBy = 'time';
+        let liveSortDir = 'desc';
+
+        // DB Alerts Sorting & Pagination state
+        let dbSortBy = 'timestamp';
+        let dbSortDir = 'desc';
+        let dbAlertsPage = 1;
+        let dbAlertsLimit = 50;
+        let dbAlertsTotal = 0;
+        let dbAlertsTotalPages = 1;
+
+        // -------------------------------------------------------------
+        // TAB NAVIGATION
+        // -------------------------------------------------------------
+        function showTab(name) {
+            activeTab = name;
+            ['live', 'alerts', 'cells'].forEach(t => {
+                const btn = document.getElementById(`btn-tab-${t}`);
+                const panel = document.getElementById(`panel-${t}`);
+                if (btn) btn.classList.toggle('active', t === name);
+                if (panel) panel.classList.toggle('active', t === name);
+            });
+            window.location.hash = name;
+
+            if (name === 'alerts') {
+                loadDbStats();
+                loadStoredAlerts(1);
+            } else if (name === 'cells') {
+                loadStoredCells();
+            }
+        }
+
+        // Check hash on load
+        function initHashTab() {
+            const hash = window.location.hash.replace('#', '');
+            if (hash === 'alerts' || hash === 'cells' || hash === 'live') {
+                showTab(hash);
+            }
+        }
+
+        // -------------------------------------------------------------
+        // LIVE REQUESTS FUNCTIONS
+        // -------------------------------------------------------------
+        async function fetchRequests() {
+            try {
+                const res = await fetch('/api/v1/requests');
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                // Update KPIs
+                document.getElementById('kpi-total').innerText = data.stats.total_requests || 0;
+                document.getElementById('kpi-success').innerText = data.stats.success_count || 0;
+                document.getElementById('kpi-alerts').innerText = data.stats.alerts_count || 0;
+                document.getElementById('kpi-last').innerText = data.stats.last_request_time || '--:--:--';
+                
+                const tabBadge = document.getElementById('tab-badge-live');
+                if (tabBadge) tabBadge.innerText = (data.requests || []).length;
+
+                cachedRequests = data.requests || [];
+                updateFilterOptions(cachedRequests);
+                renderTable(cachedRequests);
+            } catch (e) {
+                console.error("Fetch error:", e);
+            }
+        }
+
+        function toggleAlertsFilter() {
+            const cb = document.getElementById('filter-alerts-only');
+            if (cb) {
+                cb.checked = !cb.checked;
+                filterTable();
+            }
+        }
+
+        function setFilterSym(sym) {
+            const el = document.getElementById('filter-symbol');
+            if (el) {
+                el.value = sym;
+                filterTable();
+            }
+        }
+
+        function setFilterTf(tf) {
+            const el = document.getElementById('filter-tf');
+            if (el) {
+                el.value = tf.toLowerCase();
+                filterTable();
+            }
+        }
+
+        function resetFilters() {
+            if (document.getElementById('filter-symbol')) document.getElementById('filter-symbol').value = '';
+            if (document.getElementById('filter-tf')) document.getElementById('filter-tf').value = '';
+            if (document.getElementById('filter-input')) document.getElementById('filter-input').value = '';
+            if (document.getElementById('filter-alerts-only')) document.getElementById('filter-alerts-only').checked = false;
+            filterTable();
+        }
+
+        function updateFilterOptions(requests) {
+            const symSelect = document.getElementById('filter-symbol');
+            const tfSelect = document.getElementById('filter-tf');
+            if (!symSelect || !tfSelect) return;
+
+            const curSym = symSelect.value;
+            const curTf = tfSelect.value;
+
+            const baseSyms = ['GER40', 'NAS100', 'USA500', 'US30', 'FRA40', 'UK100'];
+            const existingSyms = new Set(baseSyms);
+            const baseTfs = ['1m', '2m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', 'd', 'w'];
+            const existingTfs = new Set(baseTfs);
+
+            requests.forEach(r => {
+                (r.symbols || []).forEach(s => existingSyms.add(String(s).toUpperCase()));
+                (r.timeframes || []).forEach(t => existingTfs.add(String(t).toLowerCase()));
+            });
+
+            const symList = Array.from(existingSyms);
+            const currentOptions = Array.from(symSelect.options).map(o => o.value);
+            if (symList.some(s => !currentOptions.includes(s))) {
+                symSelect.innerHTML = '<option value="">Tous les symboles</option>' + 
+                    symList.map(s => `<option value="${s}">${s === 'USA500' ? 'USA500 (SPX500)' : s}</option>`).join('');
+                symSelect.value = curSym;
+            }
+
+            const tfList = Array.from(existingTfs);
+            const currentTfOptions = Array.from(tfSelect.options).map(o => o.value);
+            if (tfList.some(t => !currentTfOptions.includes(t))) {
+                tfSelect.innerHTML = '<option value="">Tous timeframes</option>' + 
+                    tfList.map(t => `<option value="${t}">${t.toUpperCase()}</option>`).join('');
+                tfSelect.value = curTf;
+            }
+        }
+
+        function renderTable(requests) {
+            const tbody = document.getElementById('requests-tbody');
+            const filterSym = document.getElementById('filter-symbol') ? document.getElementById('filter-symbol').value.toUpperCase().trim() : '';
+            const filterTf = document.getElementById('filter-tf') ? document.getElementById('filter-tf').value.toLowerCase().trim() : '';
+            const filterText = document.getElementById('filter-input') ? document.getElementById('filter-input').value.toLowerCase().trim() : '';
+            const alertsOnly = document.getElementById('filter-alerts-only') ? document.getElementById('filter-alerts-only').checked : false;
+            
+            const filtered = requests.filter(r => {
+                if (alertsOnly && (!r.alerts_count || r.alerts_count <= 0)) return false;
+
+                const rSyms = (r.symbols || []).map(s => String(s).toUpperCase());
+                const rTfs = (r.timeframes || []).map(t => String(t).toLowerCase());
+
+                if (filterSym) {
+                    const matchSym = rSyms.some(s => {
+                        if (s === filterSym) return true;
+                        if (filterSym === 'USA500' && (s === 'SPX500' || s === 'US500' || s === 'SP500')) return true;
+                        if ((filterSym === 'SPX500' || filterSym === 'US500') && s === 'USA500') return true;
+                        return false;
+                    });
+                    if (!matchSym) return false;
+                }
+
+                if (filterTf) {
+                    const matchTf = rTfs.some(t => {
+                        return t === filterTf || t === `${filterTf}m` || `${t}m` === filterTf;
+                    });
+                    if (!matchTf) return false;
+                }
+
+                if (filterText) {
+                    if (filterText === "alerte" || filterText === "alertes" || filterText === "alert" || filterText === "alerts") {
+                        if (!r.alerts_count || r.alerts_count <= 0) return false;
+                    } else {
+                        const symStr = rSyms.join(' ').toLowerCase();
+                        const tfStr = rTfs.join(' ').toLowerCase();
+                        const ipStr = (r.client_ip || '').toLowerCase();
+                        const tokens = filterText.split(/\s+/).filter(Boolean);
+                        const allTokensMatch = tokens.every(tok => symStr.includes(tok) || tfStr.includes(tok) || ipStr.includes(tok));
+                        if (!allTokensMatch) return false;
+                    }
+                }
+
+                return true;
+            });
+
+            // Column sorting for live requests
+            filtered.sort((a, b) => {
+                let valA, valB;
+                switch (liveSortBy) {
+                    case 'received_at':
+                    case 'time':
+                        valA = a.received_at || a.time_str || a.time || '';
+                        valB = b.received_at || b.time_str || b.time || '';
+                        break;
+                    case 'candle_time':
+                        valA = a.candle_time || '';
+                        valB = b.candle_time || '';
+                        break;
+                    case 'symbol':
+                        valA = (a.symbols && a.symbols.length ? a.symbols[0] : '').toUpperCase();
+                        valB = (b.symbols && b.symbols.length ? b.symbols[0] : '').toUpperCase();
+                        break;
+                    case 'tf':
+                        valA = (a.timeframes && a.timeframes.length ? a.timeframes[0] : '').toLowerCase();
+                        valB = (b.timeframes && b.timeframes.length ? b.timeframes[0] : '').toLowerCase();
+                        break;
+                    case 'alerts':
+                        valA = a.alerts_count || 0;
+                        valB = b.alerts_count || 0;
+                        break;
+                    case 'price':
+                        valA = parseFloat(a.sample_price) || 0;
+                        valB = parseFloat(b.sample_price) || 0;
+                        break;
+                    case 'metrics':
+                        valA = a.metrics_count || 0;
+                        valB = b.metrics_count || 0;
+                        break;
+                    case 'duration':
+                        valA = a.duration_ms || 0;
+                        valB = b.duration_ms || 0;
+                        break;
+                    case 'ip':
+                        valA = a.client_ip || '';
+                        valB = b.client_ip || '';
+                        break;
+                    default:
+                        valA = a.received_at || a.time_str || '';
+                        valB = b.received_at || b.time_str || '';
+                }
+                if (valA < valB) return liveSortDir === 'asc' ? -1 : 1;
+                if (valA > valB) return liveSortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            const countEl = document.getElementById('filter-count');
+            if (countEl) {
+                if (filterSym || filterTf || alertsOnly || filterText) {
+                    countEl.innerText = `${filtered.length} / ${requests.length} requêtes (filtrées)`;
+                    countEl.style.color = 'var(--yellow)';
+                } else {
+                    countEl.innerText = `${requests.length} requêtes`;
+                    countEl.style.color = 'var(--text-muted)';
+                }
+            }
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                    ${requests.length === 0 ? "En attente de signaux TradingView..." : "Aucune requête ne correspond aux filtres combinés"}
+                </td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(r => {
+                const isTvIp = r.client_ip && (r.client_ip.startsWith('52.') || r.client_ip.startsWith('54.'));
+                const ipBadge = isTvIp ? `<span class="badge badge-tv">TV Cloud</span> ${r.client_ip}` : r.client_ip;
+                const syms = (r.symbols && r.symbols.length) ? r.symbols.map(s => `<span class="badge badge-sym" style="cursor:pointer;" onclick="setFilterSym('${s}')" title="Filtrer sur ${s}">${s}</span>`).join(' ') : '--';
+                const tfs = (r.timeframes && r.timeframes.length) ? r.timeframes.map(t => `<span class="badge badge-tf" style="cursor:pointer;" onclick="setFilterTf('${t}')" title="Filtrer sur ${t}">${t}</span>`).join(' ') : '--';
+                const priceStr = r.sample_price !== null && r.sample_price !== undefined ? parseFloat(r.sample_price).toFixed(2) : '--';
+                const alertsBadge = r.alerts_count > 0 
+                    ? `<span class="badge badge-alert">🚨 ${r.alerts_count} alerte(s)</span>` 
+                    : `<span class="badge badge-success">0</span>`;
+
+                const recAt = r.received_at || r.time_str || '--';
+                const candleAt = r.candle_time || '--';
+
+                return `
+                    <tr>
+                        <td style="font-family: monospace; color: #fff; font-size: 11px;">${recAt}</td>
+                        <td style="font-family: monospace; color: var(--blue); font-size: 11px; font-weight: 600;">${candleAt}</td>
+                        <td>${syms}</td>
+                        <td>${tfs}</td>
+                        <td>${alertsBadge}</td>
+                        <td style="font-family: monospace; font-weight: 600; color: #fff;">${priceStr}</td>
+                        <td><span style="color: var(--text-muted);">${r.metrics_count} champs</span></td>
+                        <td style="font-family: monospace; color: var(--text-muted);">${r.duration_ms} ms</td>
+                        <td>
+                            <button onclick="showJsonDetails('${r.id}')" style="padding: 3px 8px; font-size: 11px;">🔍 JSON</button>
+                        </td>
+                        <td style="font-family: monospace;">${ipBadge}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterTable() {
+            renderTable(cachedRequests);
+        }
+
+        function sortLiveTable(col) {
+            if (liveSortBy === col) {
+                liveSortDir = liveSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                liveSortBy = col;
+                liveSortDir = (col === 'time' || col === 'alerts' || col === 'price' || col === 'duration' || col === 'metrics') ? 'desc' : 'asc';
+            }
+            updateLiveSortHeader();
+            renderTable(cachedRequests);
+        }
+
+        function updateLiveSortHeader() {
+            const table = document.getElementById('live-requests-table');
+            if (!table) return;
+            table.querySelectorAll('th.th-sortable').forEach(th => {
+                const col = th.getAttribute('data-sort');
+                const icon = th.querySelector('.sort-icon');
+                if (col === liveSortBy) {
+                    th.classList.add('sorted');
+                    if (icon) icon.innerHTML = liveSortDir === 'asc' ? '▲' : '▼';
+                } else {
+                    th.classList.remove('sorted');
+                    if (icon) icon.innerHTML = '⇅';
+                }
+            });
+        }
+
+        function showJsonDetails(id) {
+            const req = cachedRequests.find(r => r.id === id);
+            if (!req) return;
+            document.getElementById('modal-title').innerText = `Payload [${req.time_str}] - ${req.symbols.join(', ')} (${req.timeframes.join(', ')})`;
+            document.getElementById('modal-json-content').innerText = JSON.stringify(req.raw_preview, null, 2);
+            document.getElementById('json-modal').style.display = 'flex';
+        }
+
+        // -------------------------------------------------------------
+        // STORED ALERTS SQLITE FUNCTIONS (Tab 2)
+        // -------------------------------------------------------------
+        async function loadDbStats() {
+            try {
+                const res = await fetch('/api/v1/data/stats');
+                if (!res.ok) return;
+                const stats = await res.json();
+                
+                const totalAlerts = stats.total_alerts !== undefined ? stats.total_alerts : (stats.alerts_count || 0);
+                document.getElementById('kpi-db-total').innerText = totalAlerts.toLocaleString();
+                document.getElementById('tab-badge-alerts').innerText = totalAlerts.toLocaleString();
+                
+                document.getElementById('kpi-db-size').innerText = stats.db_size_formatted || '0 KB';
+                const retentionDays = stats.retention_days || 5;
+                const pathEl = document.getElementById('kpi-db-path');
+                if (pathEl) pathEl.innerText = `🛡️ ${retentionDays}j glissants (tv_data.db)`;
+
+                document.getElementById('kpi-db-cells').innerText = stats.total_cells || stats.cells_count || 18;
+                document.getElementById('tab-badge-cells').innerText = stats.total_cells || stats.cells_count || 18;
+            } catch (e) {
+                console.error("Error loading DB stats:", e);
+            }
+        }
+
+        async function triggerPurge(days = 5) {
+            if (!confirm(`Confirmer l'exécution de la purge glissante (${days} jours de rétention) ?\nToutes les alertes et requêtes antérieures seront supprimées.`)) return;
+            try {
+                const res = await fetch(`/api/v1/data/purge?days=${days}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    alert(`✅ Purge ${days}J glissant réussie :\n• ${data.purged_alerts} alerte(s) purgée(s)\n• ${data.purged_requests} requête(s) purgée(s)\nLimite : ${data.cutoff_datetime}`);
+                    if (activeTab === 'alerts') loadStoredAlerts(1);
+                    if (activeTab === 'live') fetchRequests();
+                    loadDbStats();
+                } else {
+                    alert("Erreur lors de la purge : " + (data.error || "Inconnue"));
+                }
+            } catch (e) {
+                alert("Erreur réseau : " + e.message);
+            }
+        }
+
+        function formatTimestamp(ts, fallback) {
+            if (!ts) return fallback || '--';
+            try {
+                let t = parseFloat(ts);
+                if (isNaN(t) || t <= 0) return fallback || String(ts);
+                if (t > 1e11) t = t / 1000;
+                const d = new Date(t * 1000);
+                if (isNaN(d.getTime())) return fallback || String(ts);
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const hh = String(d.getHours()).padStart(2, '0');
+                const min = String(d.getMinutes()).padStart(2, '0');
+                const ss = String(d.getSeconds()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+            } catch (e) {
+                return fallback || String(ts);
+            }
+        }
+
+        function sortDbAlerts(col) {
+            if (dbSortBy === col) {
+                dbSortDir = dbSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                dbSortBy = col;
+                // Default descending for timestamps/numeric, ascending for strings
+                dbSortDir = (col === 'timestamp' || col === 'price' || col === 'value') ? 'desc' : 'asc';
+            }
+            updateDbSortHeader();
+            loadStoredAlerts(1);
+        }
+
+        function updateDbSortHeader() {
+            const table = document.getElementById('db-alerts-table');
+            if (!table) return;
+            table.querySelectorAll('th.th-sortable').forEach(th => {
+                const col = th.getAttribute('data-sort');
+                const icon = th.querySelector('.sort-icon');
+                if (col === dbSortBy) {
+                    th.classList.add('sorted');
+                    if (icon) icon.innerHTML = dbSortDir === 'asc' ? '▲' : '▼';
+                } else {
+                    th.classList.remove('sorted');
+                    if (icon) icon.innerHTML = '⇅';
+                }
+            });
+        }
+
+        function updateExportCsvUrl() {
+            const sym = document.getElementById('db-filter-sym') ? document.getElementById('db-filter-sym').value : '';
+            const tf = document.getElementById('db-filter-tf') ? document.getElementById('db-filter-tf').value : '';
+            const rule = document.getElementById('db-filter-rule') ? document.getElementById('db-filter-rule').value : '';
+            const search = document.getElementById('db-filter-search') ? document.getElementById('db-filter-search').value.trim() : '';
+
+            const params = new URLSearchParams();
+            if (sym) params.append('symbol', sym);
+            if (tf) params.append('tf', tf);
+            if (rule) params.append('rule_name', rule);
+            if (search) params.append('search', search);
+            params.append('order_by', dbSortBy);
+            params.append('order_dir', dbSortDir);
+
+            const exportBtn = document.getElementById('btn-export-csv-link');
+            if (exportBtn) {
+                exportBtn.href = `/api/v1/data/alerts/export.csv?${params.toString()}`;
+            }
+        }
+
+        async function loadStoredAlerts(page = 1) {
+            dbAlertsPage = page;
+            const sym = document.getElementById('db-filter-sym') ? document.getElementById('db-filter-sym').value : '';
+            const tf = document.getElementById('db-filter-tf') ? document.getElementById('db-filter-tf').value : '';
+            const rule = document.getElementById('db-filter-rule') ? document.getElementById('db-filter-rule').value : '';
+            const search = document.getElementById('db-filter-search') ? document.getElementById('db-filter-search').value.trim() : '';
+
+            const params = new URLSearchParams();
+            params.append('page', dbAlertsPage);
+            params.append('limit', dbAlertsLimit);
+            if (sym) params.append('symbol', sym);
+            if (tf) params.append('tf', tf);
+            if (rule) params.append('rule_name', rule);
+            if (search) params.append('search', search);
+            params.append('order_by', dbSortBy);
+            params.append('order_dir', dbSortDir);
+
+            updateExportCsvUrl();
+
+            const tbody = document.getElementById('db-alerts-tbody');
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 25px;">Chargement de la page ${page}...</td></tr>`;
+
+            try {
+                const res = await fetch(`/api/v1/data/alerts?${params.toString()}`);
+                if (!res.ok) throw new Error("HTTP error " + res.status);
+                const data = await res.json();
+
+                dbAlertsTotal = data.total || 0;
+                dbAlertsTotalPages = data.total_pages || 1;
+
+                // Update counter and pagination
+                const countBadge = document.getElementById('db-alerts-counter');
+                if (countBadge) countBadge.innerText = `${dbAlertsTotal.toLocaleString()} alertes trouvées`;
+
+                const pageCurr = document.getElementById('db-page-curr');
+                if (pageCurr) pageCurr.innerText = `Page ${data.page} / ${dbAlertsTotalPages}`;
+
+                const pageInfo = document.getElementById('db-pagination-info');
+                const startRow = (data.page - 1) * dbAlertsLimit + 1;
+                const endRow = Math.min(data.page * dbAlertsLimit, dbAlertsTotal);
+                if (pageInfo) {
+                    pageInfo.innerText = dbAlertsTotal > 0 
+                        ? `Affichage de ${startRow} à ${endRow} sur ${dbAlertsTotal.toLocaleString()} alertes (Tri: ${dbSortBy} ${dbSortDir.toUpperCase()})`
+                        : "Aucune alerte enregistrée avec ces critères";
+                }
+
+                document.getElementById('btn-db-prev').disabled = (data.page <= 1);
+                document.getElementById('btn-db-next').disabled = (data.page >= dbAlertsTotalPages);
+
+                // Update KPI for last alert if on first page
+                if (data.page === 1 && data.alerts && data.alerts.length > 0) {
+                    const first = data.alerts[0];
+                    document.getElementById('kpi-db-last-alert').innerText = formatTimestamp(first.timestamp, first.datetime_str || first.created_at || first.time_str);
+                    document.getElementById('kpi-db-last-rule').innerText = `${first.symbol} ${first.tf.toUpperCase()} - ${first.rule_name}`;
+                }
+
+                renderStoredAlertsTable(data.alerts || []);
+            } catch (e) {
+                console.error("Error loading stored alerts:", e);
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--red); padding: 25px;">Erreur lors du chargement des données: ${e.message}</td></tr>`;
+            }
+        }
+
+        let currentStoredAlerts = [];
+
+        function renderStoredAlertsTable(alerts) {
+            currentStoredAlerts = alerts || [];
+            const tbody = document.getElementById('db-alerts-tbody');
+            if (!alerts || alerts.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">Aucune alerte trouvée dans la base SQLite.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = alerts.map((a, idx) => {
+                const dateStr = formatTimestamp(a.timestamp, a.datetime_str || a.created_at || a.time_str);
+                const ruleLower = (a.rule_name || '').toLowerCase();
+                let ruleBadgeClass = 'badge-tv';
+                let icon = '🔔';
+                if (ruleLower.includes('tp')) {
+                    ruleBadgeClass = 'badge-tp';
+                    icon = ruleLower.includes('bull') ? '🎯▲' : '🎯▼';
+                } else if (ruleLower.includes('exit')) {
+                    ruleBadgeClass = 'badge-exit';
+                    icon = ruleLower.includes('bull') ? '🚪▲' : '🚪▼';
+                } else if (ruleLower.includes('bull')) {
+                    ruleBadgeClass = 'badge-bull';
+                    icon = '▲';
+                } else if (ruleLower.includes('bear')) {
+                    ruleBadgeClass = 'badge-bear';
+                    icon = '▼';
+                }
+
+                const priceVal = (a.candle_open !== null && a.candle_open !== undefined) 
+                    ? a.candle_open 
+                    : (a.price !== null && a.price !== undefined ? a.price : a.value);
+                const priceNum = parseFloat(priceVal);
+                const priceStr = (!isNaN(priceNum) && priceNum > 100) ? priceNum.toFixed(2) : (priceVal !== null && priceVal !== undefined ? String(priceVal) : '--');
+                const barsAgoStr = a.bars_ago !== null && a.bars_ago !== undefined ? `${a.bars_ago} b` : '0 b';
+
+                return `
+                    <tr>
+                        <td style="font-family: monospace; color: #fff;">${dateStr}</td>
+                        <td><span class="badge badge-sym">${a.symbol}</span></td>
+                        <td><span class="badge badge-tf">${a.tf.toUpperCase()}</span></td>
+                        <td>
+                            <span class="badge ${ruleBadgeClass}" style="font-size: 11px;">
+                                ${icon} ${a.rule_name}
+                            </span>
+                        </td>
+                        <td style="font-family: monospace; font-weight: 600; color: #fff;">${priceStr}</td>
+                        <td style="font-family: monospace; color: var(--text-muted);">${barsAgoStr}</td>
+                        <td>
+                            <button onclick="showStoredAlertJson('${a.id}')" style="padding: 3px 8px; font-size: 11px; cursor: pointer;">🔍 Inspecter Data</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function showStoredAlertJson(alertId) {
+            try {
+                // 1. Chercher dans les alertes chargées en mémoire
+                let alertItem = currentStoredAlerts.find(a => String(a.id) === String(alertId));
+
+                // 2. Si pas en mémoire, interroger l'API directe
+                if (!alertItem) {
+                    const res = await fetch(`/api/v1/data/alerts/${alertId}`);
+                    if (res.ok) {
+                        const jsonRes = await res.json();
+                        alertItem = jsonRes.alert || jsonRes;
+                    }
+                }
+
+                if (!alertItem) {
+                    alert("Alerte introuvable : " + alertId);
+                    return;
+                }
+
+                document.getElementById('modal-title').innerText = `Alerte #${alertItem.id} : ${alertItem.symbol} ${alertItem.tf.toUpperCase()} - ${alertItem.rule_name}`;
+                
+                // Préparer un payload lisible et complet
+                const displayPayload = {
+                    "id": alertItem.id,
+                    "date_heure": alertItem.datetime_str || alertItem.created_at || alertItem.time_str,
+                    "timestamp": (alertItem.timestamp !== null && alertItem.timestamp !== undefined) ? parseInt(alertItem.timestamp, 10) : alertItem.timestamp,
+                    "symbol": alertItem.symbol,
+                    "timeframe": alertItem.tf,
+                    "rule_name": alertItem.rule_name,
+                    "champ_declencheur": alertItem.field,
+                    "valeur_detectee": alertItem.value,
+                    "seuil_regle": alertItem.threshold,
+                    "severite": alertItem.severity,
+                    "open_bougie": alertItem.candle_open,
+                    "message": alertItem.message
+                };
+
+                document.getElementById('modal-json-content').innerText = JSON.stringify(displayPayload, null, 2);
+                document.getElementById('json-modal').style.display = 'flex';
+
+                // Tenter d'enrichir avec les indicateurs complets de la cellule
+                try {
+                    const cellRes = await fetch(`/api/v1/data/cells/${alertItem.symbol}/${alertItem.tf}`);
+                    if (cellRes.ok) {
+                        const cellJson = await cellRes.json();
+                        if (cellJson && cellJson.data) {
+                            displayPayload["indicateurs_complets_cellule"] = cellJson.data;
+                            document.getElementById('modal-json-content').innerText = JSON.stringify(displayPayload, null, 2);
+                        }
+                    }
+                } catch (eCell) {
+                    console.log("Cell details optional:", eCell);
+                }
+            } catch (e) {
+                console.error("Error viewing alert json:", e);
+                alert("Erreur lors de l'ouverture des détails de l'alerte: " + e.message);
+            }
+        }
+
+        function applyDbFilters() {
+            loadStoredAlerts(1);
+        }
+
+        function resetDbFilters() {
+            if (document.getElementById('db-filter-sym')) document.getElementById('db-filter-sym').value = '';
+            if (document.getElementById('db-filter-tf')) document.getElementById('db-filter-tf').value = '';
+            if (document.getElementById('db-filter-rule')) document.getElementById('db-filter-rule').value = '';
+            if (document.getElementById('db-filter-search')) document.getElementById('db-filter-search').value = '';
+            loadStoredAlerts(1);
+        }
+
+        function prevDbPage() {
+            if (dbAlertsPage > 1) {
+                loadStoredAlerts(dbAlertsPage - 1);
+            }
+        }
+
+        function nextDbPage() {
+            if (dbAlertsPage < dbAlertsTotalPages) {
+                loadStoredAlerts(dbAlertsPage + 1);
+            }
+        }
+
+        function changeDbPageSize() {
+            const sel = document.getElementById('db-page-size');
+            if (sel) {
+                dbAlertsLimit = parseInt(sel.value, 10) || 50;
+                loadStoredAlerts(1);
+            }
+        }
+
+        // -------------------------------------------------------------
+        // STORED CELLS FUNCTIONS (Tab 3)
+        // -------------------------------------------------------------
+        let cachedCellsData = [];
+
+        async function loadStoredCells() {
+            const container = document.getElementById('cells-grid-container');
+            container.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 30px;">Chargement des cellules...</div>`;
+
+            try {
+                const res = await fetch('/api/v1/data/cells');
+                if (!res.ok) throw new Error("HTTP error " + res.status);
+                const data = await res.json();
+                cachedCellsData = Array.isArray(data) ? data : (data.cells || []);
+
+                const badge = document.getElementById('tab-badge-cells');
+                if (badge) badge.innerText = cachedCellsData.length;
+
+                renderStoredCellsGrid();
+            } catch (e) {
+                console.error("Error loading cells:", e);
+                container.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--red); padding: 30px;">Erreur de chargement: ${e.message}</div>`;
+            }
+        }
+
+        function renderStoredCellsGrid() {
+            const container = document.getElementById('cells-grid-container');
+            if (!container) return;
+
+            const symFilter = (document.getElementById('cells-filter-sym')?.value || '').toUpperCase();
+            const tfFilter = (document.getElementById('cells-filter-tf')?.value || '').toLowerCase();
+
+            let filtered = cachedCellsData.filter(c => {
+                if (symFilter && c.symbol.toUpperCase() !== symFilter) return false;
+                if (tfFilter && c.tf.toLowerCase() !== tfFilter) return false;
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 40px;">Aucune cellule trouvée pour les filtres sélectionnés.</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(c => {
+                const price = c.price !== null && c.price !== undefined ? parseFloat(c.price).toFixed(2) : '--';
+                const o = c.open !== null && c.open !== undefined ? parseFloat(c.open).toFixed(2) : '--';
+                const h = c.high !== null && c.high !== undefined ? parseFloat(c.high).toFixed(2) : '--';
+                const l = c.low !== null && c.low !== undefined ? parseFloat(c.low).toFixed(2) : '--';
+                const timeStr = c.time_str || c.updated_at || (c.timestamp ? new Date(c.timestamp * 1000).toLocaleString() : '--');
+
+                return `
+                    <div class="cell-card">
+                        <div class="cell-header">
+                            <div class="cell-title">
+                                <span class="badge badge-sym" style="font-size: 12px; font-weight: 700;">${c.symbol}</span>
+                                <span class="badge badge-tf" style="font-size: 12px;">${c.tf.toUpperCase()}</span>
+                            </div>
+                            <span style="font-family: monospace; font-size: 15px; font-weight: 700; color: #fff;">${price}</span>
+                        </div>
+                        <div class="cell-stats-row">
+                            <span class="cell-stats-label">O / H / L :</span>
+                            <span class="cell-stats-val">${o} / ${h} / ${l}</span>
+                        </div>
+                        <div class="cell-stats-row">
+                            <span class="cell-stats-label">Métriques :</span>
+                            <span class="cell-stats-val" style="color: var(--teal);">${c.metrics_count} indicateurs</span>
+                        </div>
+                        <div class="cell-stats-row">
+                            <span class="cell-stats-label">Mise à jour :</span>
+                            <span class="cell-stats-val" style="color: var(--text-muted); font-size: 11px;">${timeStr}</span>
+                        </div>
+                        <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+                            <button onclick="showCellDetailJson('${c.symbol}', '${c.tf}')" class="btn-primary" style="padding: 5px 12px; font-size: 11px;">
+                                📊 Inspecter les ${c.metrics_count} indicateurs
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function showCellDetailJson(symbol, tf) {
+            try {
+                const res = await fetch(`/api/v1/data/cells/${symbol}/${tf}`);
+                if (!res.ok) throw new Error("HTTP error " + res.status);
+                const cell = await res.json();
+                const metricsObj = cell.data || cell.data_json || cell;
+                const metricCount = Object.keys(metricsObj).length;
+
+                document.getElementById('modal-title').innerText = `Cellule ${symbol} [${tf.toUpperCase()}] - ${metricCount} Indicateurs Techniques Stockés`;
+                document.getElementById('modal-json-content').innerText = JSON.stringify(metricsObj, null, 2);
+                document.getElementById('json-modal').style.display = 'flex';
+            } catch (e) {
+                console.error("Error showing cell details:", e);
+                alert("Impossible de charger les détails de cette cellule: " + e.message);
+            }
+        }
+
+        // -------------------------------------------------------------
+        // MODAL & GENERAL UTILITIES
+        // -------------------------------------------------------------
+        function closeModal(e) {
+            document.getElementById('json-modal').style.display = 'none';
+        }
+
+        function copyModalJson() {
+            const text = document.getElementById('modal-json-content').innerText;
+            navigator.clipboard.writeText(text);
+            alert("JSON copié dans le presse-papier !");
+        }
+
+        async function clearLogs() {
+            if (!confirm("Voulez-vous effacer l'historique des traces de requêtes en mémoire ?")) return;
+            await fetch('/api/v1/requests', { method: 'DELETE' });
+            fetchRequests();
+        }
+
+        async function simulateTest() {
+            const testPayload = {
+                ticker: "GER40",
+                interval: "5",
+                timestamp: Date.now(),
+                open: 19415.0,
+                high: 19430.5,
+                low: 19410.0,
+                price: 19425.0,
+                framework: {
+                    "Bull Confirmation Signal": 19420.0,
+                    "Trend Support": 19390.0,
+                    "PRICE SQUEEZE Alert": null
+                },
+                momentum: {
+                    "BULL Signals": 19422.0,
+                    "Momentum": 15.4
+                }
+            };
+            await fetch('/api/v1/webhook', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(testPayload)
+            });
+            fetchRequests();
+            if (activeTab === 'alerts') loadStoredAlerts(1);
+            if (activeTab === 'cells') loadStoredCells();
+        }
+
+        function toggleAutoRefresh() {
+            autoRefresh = !autoRefresh;
+            const btn = document.getElementById('btn-toggle-refresh');
+            const lbl = document.getElementById('auto-refresh-label');
+            if (autoRefresh) {
+                btn.innerText = "Pause";
+                lbl.innerText = "Live (1.5s)";
+                startInterval();
+            } else {
+                btn.innerText = "Reprendre";
+                lbl.innerText = "En pause";
+                clearInterval(refreshInterval);
+            }
+        }
+
+        function startInterval() {
+            clearInterval(refreshInterval);
+            refreshInterval = setInterval(() => {
+                if (activeTab === 'live') fetchRequests();
+            }, 1500);
+        }
+
+        // Initial launch
+        initHashTab();
+        updateLiveSortHeader();
+        updateDbSortHeader();
+        fetchRequests();
+        loadDbStats();
+        startInterval();
+    </script>
+</body>
+</html>

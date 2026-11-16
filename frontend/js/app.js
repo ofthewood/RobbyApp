@@ -532,11 +532,15 @@ function initNavigation() {
             elements.tabContents.forEach(tab => tab.classList.remove('active'));
             document.getElementById(targetTabId).classList.add('active');
             
-            // Toggle PC Fullscreen layout for Journal and Trade (Graph) tabs
-            if (targetTabId === 'tab-journal' || targetTabId === 'tab-graph') {
+            // Toggle PC Fullscreen layout for Journal, Trade, and Dashboard tabs
+            if (targetTabId === 'tab-journal' || targetTabId === 'tab-graph' || targetTabId === 'tab-dashboard') {
                 document.body.classList.add('pc-fullscreen-active');
             } else {
                 document.body.classList.remove('pc-fullscreen-active');
+            }
+            
+            if (targetTabId === 'tab-dashboard') {
+                loadDashboardMatrix();
             }
             
             if (targetTabId === 'tab-journal') {
@@ -566,10 +570,14 @@ function initNavigation() {
     // Check on page load if active tab is fullscreen
     const activeTab = document.querySelector('.tab-content.active');
     if (activeTab) {
-        if (activeTab.id === 'tab-journal' || activeTab.id === 'tab-graph') {
+        if (activeTab.id === 'tab-journal' || activeTab.id === 'tab-graph' || activeTab.id === 'tab-dashboard') {
             document.body.classList.add('pc-fullscreen-active');
         } else {
             document.body.classList.remove('pc-fullscreen-active');
+        }
+        
+        if (activeTab.id === 'tab-dashboard') {
+            loadDashboardMatrix();
         }
         
         const viewport = document.querySelector('.app-main-viewport');
@@ -5688,6 +5696,7 @@ function init() {
     // Initial Polls
     fetchStatus();
     fetchPositions();
+    initDashboardTab();
     
     // Setting up polling loops
     setInterval(fetchPositions, 1000); // Update positions every 1s
@@ -5698,6 +5707,12 @@ function init() {
             fetchHistoryData(true);
         }
     }, 10000); // Update history every 10s if active
+    setInterval(() => {
+        const tab = document.getElementById('tab-dashboard');
+        if (tab && tab.classList.contains('active')) {
+            loadDashboardMatrix(true);
+        }
+    }, 2000); // Update dashboard matrix every 2s if active
 }
 
 // Start app on DOM Loaded
@@ -5814,3 +5829,438 @@ function initRsiControls() {
         });
     }
 }
+
+// ==========================================================================
+// DASHBOARD PRO FRAMEWORK MULTI-INDICES MATRIX
+// ==========================================================================
+const DASHBOARD_SYMBOLS = ['GER40', 'NAS100', 'USA500'];
+const DASHBOARD_TIMEFRAMES = ['4H', '1H', '15m', '5m', '2m', '1m'];
+let dashboardMatrixData = null;
+let isDashboardFetching = false;
+
+function initDashboardTab() {
+    renderDashboardSkeleton();
+    const btnRefresh = document.getElementById('btn-refresh-dashboard');
+    if (btnRefresh) {
+        btnRefresh.addEventListener('click', () => loadDashboardMatrix(false));
+    }
+}
+
+function renderDashboardSkeleton() {
+    const thead = document.getElementById('dashboard-matrix-thead');
+    const tbody = document.getElementById('dashboard-matrix-tbody');
+    if (!thead || !tbody) return;
+
+    // Row 1: Index names spanning 2 columns each
+    let r1 = '<tr>';
+    DASHBOARD_SYMBOLS.forEach(sym => {
+        r1 += `<th colspan="2" class="th-symbol-header">${sym}</th>`;
+    });
+    r1 += '</tr>';
+
+    // Row 2: Sub-headers (Tend. | Press.)
+    let r2 = '<tr>';
+    DASHBOARD_SYMBOLS.forEach(() => {
+        r2 += `<th class="th-sub-header">Tend.</th><th class="th-sub-header">Press.</th>`;
+    });
+    r2 += '</tr>';
+
+    thead.innerHTML = r1 + r2;
+
+    // Rows: 4H down to 1m
+    let bodyHtml = '';
+    DASHBOARD_TIMEFRAMES.forEach(tf => {
+        bodyHtml += `<tr data-tf="${tf}">`;
+        DASHBOARD_SYMBOLS.forEach(sym => {
+            const cellKey = `${sym}_${tf}`;
+            bodyHtml += `<td class="matrix-cell-trend matrix-cell-nodata" id="cell-trend-${cellKey}" data-sym="${sym}" data-tf="${tf}" title="En attente de données TradingView..." onclick="openDashboardCellModal('${sym}', '${tf}')">${tf}</td>`;
+            bodyHtml += `<td class="matrix-cell-pressure matrix-cell-nodata" id="cell-press-${cellKey}" data-sym="${sym}" data-tf="${tf}" title="En attente de données TradingView..." onclick="openDashboardCellModal('${sym}', '${tf}')"><span class="nodata-dash">—</span></td>`;
+        });
+        bodyHtml += `</tr>`;
+    });
+    tbody.innerHTML = bodyHtml;
+}
+
+async function loadDashboardMatrix(isBackground = false) {
+    if (isDashboardFetching) return;
+    isDashboardFetching = true;
+
+    const statusBadge = document.getElementById('dashboard-tv-status');
+    const liveDot = document.querySelector('.dashboard-live-dot');
+
+    try {
+        const res = await fetch('/api/v1/matrix');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        dashboardMatrixData = data;
+        renderDashboardMatrix(data);
+
+        if (statusBadge) {
+            statusBadge.innerText = 'En direct';
+            statusBadge.style.color = '#10b981';
+            statusBadge.style.borderColor = '#10b981';
+        }
+        if (liveDot) liveDot.style.background = '#10b981';
+    } catch (e) {
+        if (!isBackground) {
+            console.warn('[Dashboard] Error fetching matrix:', e);
+        }
+        if (statusBadge) {
+            statusBadge.innerText = 'Hors ligne';
+            statusBadge.style.color = '#ef4444';
+            statusBadge.style.borderColor = '#ef4444';
+        }
+        if (liveDot) liveDot.style.background = '#ef4444';
+    } finally {
+        isDashboardFetching = false;
+    }
+}
+
+function evalDashboardTrend(cell) {
+    if (!cell) return 'trend-range';
+    if (cell.trend) {
+        if (cell.trend === 'bull_light') return 'trend-bull-light';
+        if (cell.trend === 'bull_dark') return 'trend-bull-dark';
+        if (cell.trend === 'bear_light') return 'trend-bear-light';
+        if (cell.trend === 'bear_dark') return 'trend-bear-dark';
+        return 'trend-range';
+    }
+    const d = cell.data || {};
+    const ma = parseFloat(d['Context MA']);
+    const supDn = parseFloat(d['Context Sup DN']);
+    const supUp = parseFloat(d['Context Sup UP']);
+    const resDn = parseFloat(d['Context Res DN']);
+    const resUp = parseFloat(d['Context Res UP']);
+    if (isNaN(ma)) return 'trend-range';
+
+    // Bullish:
+    // bleu clair : la moyenne se trouve a l'interieur de la zone de contexte support [Context Sup DN, Context Sup UP]
+    if (!isNaN(supDn) && !isNaN(supUp) && ma >= supDn && ma <= supUp) return 'trend-bull-light';
+    // bleu foncé: la moyenne est en dessous du contexte support (Context MA < Context Sup DN)
+    if (!isNaN(supDn) && ma < supDn) return 'trend-bull-dark';
+
+    // Bearish:
+    // rouge clair : la moyenne se trouve a l'interieur de la zone de contexte résistant [Context Res DN, Context Res UP]
+    if (!isNaN(resDn) && !isNaN(resUp) && ma >= resDn && ma <= resUp) return 'trend-bear-light';
+    // rouge foncé: la moyenne est au dessus du contexte resistant (Context MA > Context Res UP)
+    if (!isNaN(resUp) && ma > resUp) return 'trend-bear-dark';
+
+    return 'trend-range';
+}
+
+function evalDashboardPressure(cell) {
+    if (!cell) return 'press-neutral';
+    if (cell.pressure) {
+        if (cell.pressure === 'buy_dark') return 'press-buy-dark';
+        if (cell.pressure === 'buy_light') return 'press-buy-light';
+        if (cell.pressure === 'sell_light') return 'press-sell-light';
+        if (cell.pressure === 'sell_dark') return 'press-sell-dark';
+        return 'press-neutral';
+    }
+    const d = cell.data || {};
+    const price = parseFloat(d['price'] !== undefined ? d['price'] : d['close']);
+    const supDn = parseFloat(d['Context Sup DN']);
+    const supUp = parseFloat(d['Context Sup UP']);
+    const resDn = parseFloat(d['Context Res DN']);
+    const resUp = parseFloat(d['Context Res UP']);
+    if (isNaN(price)) return 'press-neutral';
+
+    // Pression acheteuse : coté contexte resistant
+    // bleu clair : le prix à l'intérieur du canal [Context Res DN, Context Res UP]
+    if (!isNaN(resDn) && !isNaN(resUp) && price >= resDn && price <= resUp) return 'press-buy-light';
+    // bleu foncé : Price > Context Res UP
+    if (!isNaN(resUp) && price > resUp) return 'press-buy-dark';
+
+    // Pression vendeuse : coté contexte support
+    // rouge clair : le prix à l'intérieur du canal [Context Sup DN, Context Sup UP]
+    if (!isNaN(supDn) && !isNaN(supUp) && price >= supDn && price <= supUp) return 'press-sell-light';
+    // rouge foncé : le prix est en dessous du contexte support (Price < Context Sup DN)
+    if (!isNaN(supDn) && price < supDn) return 'press-sell-dark';
+
+    return 'press-neutral';
+}
+
+function getDashboardSignals(cell) {
+    if (!cell) return [];
+    const d = cell.data || {};
+    const price = parseFloat(d['price'] !== undefined ? d['price'] : d['close']);
+
+    if (cell.recent_signals && Array.isArray(cell.recent_signals) && cell.recent_signals.length > 0) {
+        return cell.recent_signals.map(s => {
+            const openVal = (s.candle_open !== undefined && s.candle_open !== null) ? s.candle_open : (s.bars_ago === 0 ? parseFloat(d['open']) : null);
+            let inv = Boolean(s.invalidated);
+            if (openVal !== null && !isNaN(openVal) && !isNaN(price)) {
+                if (s.type === 'bull' && price < openVal) inv = true;
+                if (s.type === 'bear' && price > openVal) inv = true;
+            }
+            return { ...s, invalidated: inv, candle_open: openVal };
+        });
+    }
+
+    const sigs = [];
+    const bull = d['Bull Confirmation Signal'];
+    const bear = d['Bear Confirmation Signal'];
+    const openVal = parseFloat(d['open']);
+    const isBull = bull !== null && bull !== undefined && String(bull).toLowerCase() !== 'null' && String(bull) !== '0' && String(bull) !== '0.0';
+    const isBear = bear !== null && bear !== undefined && String(bear).toLowerCase() !== 'null' && String(bear) !== '0' && String(bear) !== '0.0';
+
+    if (isBull) {
+        const inv = (!isNaN(price) && !isNaN(openVal)) ? (price < openVal) : false;
+        sigs.push({ type: 'bull', val: bull, bars_ago: 0, candle_open: openVal, invalidated: inv });
+    }
+    if (isBear) {
+        const inv = (!isNaN(price) && !isNaN(openVal)) ? (price > openVal) : false;
+        sigs.push({ type: 'bear', val: bear, bars_ago: 0, candle_open: openVal, invalidated: inv });
+    }
+    return sigs;
+}
+
+function renderDashboardMatrix(matrixData) {
+    if (!matrixData || !matrixData.cells) return;
+
+    DASHBOARD_TIMEFRAMES.forEach(tf => {
+        DASHBOARD_SYMBOLS.forEach(sym => {
+            const cellKey = `${sym}_${tf}`;
+            const trendTd = document.getElementById(`cell-trend-${cellKey}`);
+            const pressTd = document.getElementById(`cell-press-${cellKey}`);
+            if (!trendTd || !pressTd) return;
+
+            const symCells = matrixData.cells[sym] || (sym === 'USA500' ? (matrixData.cells['SPX500'] || {}) : {}) || {};
+            const cell = symCells[tf] || symCells[tf.toLowerCase()] || symCells[tf.toUpperCase()] || null;
+            const hasData = cell && cell.data && Object.keys(cell.data).length > 0 && cell.updated_at > 0;
+
+            if (!hasData) {
+                trendTd.className = 'matrix-cell-trend matrix-cell-nodata';
+                trendTd.innerText = tf;
+                trendTd.title = 'En attente de données TradingView...';
+
+                pressTd.className = 'matrix-cell-pressure matrix-cell-nodata';
+                pressTd.innerHTML = '<span class="nodata-dash">—</span>';
+                pressTd.title = 'En attente de données TradingView...';
+            } else {
+                // Trend Column
+                const trendClass = evalDashboardTrend(cell);
+                trendTd.className = `matrix-cell-trend ${trendClass}`;
+                trendTd.innerText = tf;
+                trendTd.title = `Tendance: ${trendClass.replace('trend-', '')}`;
+
+                // Pressure & Signals Column
+                const pressClass = evalDashboardPressure(cell);
+                pressTd.className = `matrix-cell-pressure ${pressClass}`;
+                pressTd.title = `Pression: ${pressClass.replace('press-', '')}`;
+
+                const sigs = getDashboardSignals(cell);
+                const bullSigs = sigs.filter(s => s.type === 'bull');
+                const bearSigs = sigs.filter(s => s.type === 'bear');
+                const bullTpSigs = sigs.filter(s => s.type === 'bull_tp');
+                const bearTpSigs = sigs.filter(s => s.type === 'bear_tp');
+                const bullExitSigs = sigs.filter(s => s.type === 'bull_exit');
+                const bearExitSigs = sigs.filter(s => s.type === 'bear_exit');
+
+                let sigHtml = '';
+
+                // 1. Signaux d'entrée (Confirmation)
+                if (bullSigs.length > 0) {
+                    const minBullSig = bullSigs.reduce((min, s) => (s.bars_ago < min.bars_ago ? s : min), bullSigs[0]);
+                    const countSuffix = bullSigs.length > 1 ? ` (${bullSigs.length})` : '';
+                    const isInv = minBullSig.invalidated;
+                    const invFlag = isInv ? '<span class="sig-inv-flag">i</span>' : '';
+                    const bullTitle = isInv
+                        ? `Signal Bull INVALIDÉ (cours < open bougie signal)`
+                        : `Signal Bull ACTIF il y a ${minBullSig.bars_ago} intervalle(s)${countSuffix}`;
+                    sigHtml += `<span class="sig-triangle sig-bull" title="${bullTitle}">▲${invFlag}<span class="sig-age">${minBullSig.bars_ago}</span></span>`;
+                }
+                if (bearSigs.length > 0) {
+                    const minBearSig = bearSigs.reduce((min, s) => (s.bars_ago < min.bars_ago ? s : min), bearSigs[0]);
+                    const countSuffix = bearSigs.length > 1 ? ` (${bearSigs.length})` : '';
+                    const isInv = minBearSig.invalidated;
+                    const invFlag = isInv ? '<span class="sig-inv-flag">i</span>' : '';
+                    const bearTitle = isInv
+                        ? `Signal Bear INVALIDÉ (cours > open bougie signal)`
+                        : `Signal Bear ACTIF il y a ${minBearSig.bars_ago} intervalle(s)${countSuffix}`;
+                    sigHtml += `<span class="sig-triangle sig-bear" title="${bearTitle}">▼${invFlag}<span class="sig-age">${minBearSig.bars_ago}</span></span>`;
+                }
+
+                // 2. Signaux Take Profit (TP)
+                if (bullTpSigs.length > 0) {
+                    const minSig = bullTpSigs.reduce((min, s) => (s.bars_ago < min.bars_ago ? s : min), bullTpSigs[0]);
+                    const title = `Bull Take Profit (TP) il y a ${minSig.bars_ago} intervalle(s)`;
+                    sigHtml += `<span class="sig-pill sig-tp-bull" title="${title}">TP▲<span class="sig-age">${minSig.bars_ago}</span></span>`;
+                }
+                if (bearTpSigs.length > 0) {
+                    const minSig = bearTpSigs.reduce((min, s) => (s.bars_ago < min.bars_ago ? s : min), bearTpSigs[0]);
+                    const title = `Bear Take Profit (TP) il y a ${minSig.bars_ago} intervalle(s)`;
+                    sigHtml += `<span class="sig-pill sig-tp-bear" title="${title}">TP▼<span class="sig-age">${minSig.bars_ago}</span></span>`;
+                }
+
+                // 3. Signaux EXIT (Sortie)
+                if (bullExitSigs.length > 0) {
+                    const minSig = bullExitSigs.reduce((min, s) => (s.bars_ago < min.bars_ago ? s : min), bullExitSigs[0]);
+                    const title = `Bull EXIT (Sortie) il y a ${minSig.bars_ago} intervalle(s)`;
+                    sigHtml += `<span class="sig-pill sig-exit-bull" title="${title}">EXT▲<span class="sig-age">${minSig.bars_ago}</span></span>`;
+                }
+                if (bearExitSigs.length > 0) {
+                    const minSig = bearExitSigs.reduce((min, s) => (s.bars_ago < min.bars_ago ? s : min), bearExitSigs[0]);
+                    const title = `Bear EXIT (Sortie) il y a ${minSig.bars_ago} intervalle(s)`;
+                    sigHtml += `<span class="sig-pill sig-exit-bear" title="${title}">EXT▼<span class="sig-age">${minSig.bars_ago}</span></span>`;
+                }
+
+                if (!sigHtml) {
+                    sigHtml = `<span style="opacity: 0.25; font-size: 11px;">-</span>`;
+                }
+                pressTd.innerHTML = sigHtml;
+            }
+        });
+    });
+}
+
+function openDashboardCellModal(sym, tf) {
+    const modal = document.getElementById('dashboard-cell-modal');
+    const titleEl = document.getElementById('cell-modal-title');
+    const contentEl = document.getElementById('cell-modal-content');
+    if (!modal || !contentEl) return;
+
+    if (titleEl) {
+        titleEl.innerHTML = `<span style="color: var(--primary-color);">${sym}</span> • Timeframe <span style="background: var(--bg-hover); padding: 2px 8px; border-radius: 4px;">${tf}</span>`;
+    }
+
+    const symCells = (dashboardMatrixData && dashboardMatrixData.cells) ? (dashboardMatrixData.cells[sym] || (sym === 'USA500' ? (dashboardMatrixData.cells['SPX500'] || {}) : {}) || {}) : {};
+    const cell = symCells[tf] || symCells[tf.toLowerCase()] || symCells[tf.toUpperCase()] || null;
+    const hasData = cell && cell.data && Object.keys(cell.data).length > 0 && cell.updated_at > 0;
+
+    if (!hasData) {
+        contentEl.innerHTML = `
+            <div style="text-align: center; padding: 36px 16px; background: var(--bg-hover); border-radius: 8px; border: 1px dashed var(--border-color);">
+                <i class="fa-solid fa-satellite-dish" style="font-size: 34px; color: #94a3b8; margin-bottom: 14px; display: inline-block;"></i>
+                <h4 style="margin: 0 0 8px 0; font-size: 15px; font-weight: 700; color: var(--text-primary);">En attente de données TradingView</h4>
+                <p style="margin: 0 auto; max-width: 440px; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+                    Aucun webhook n'a encore été reçu pour <strong>${sym}</strong> sur le timeframe <strong>${tf}</strong>.<br><br>
+                    Pour alimenter cette cellule, appliquez l'indicateur <em>"Connecteur Webhook PRO Framework"</em> sur le graphique ${sym} en ${tf} et vérifiez que les alertes webhook sont activées.
+                </p>
+            </div>
+        `;
+        modal.style.display = 'flex';
+        return;
+    }
+
+    const d = (cell && cell.data) ? cell.data : {};
+
+    const updatedStr = (cell && cell.updated_at) ? new Date(cell.updated_at * 1000).toLocaleTimeString() : 'Aucune donnée';
+    const trendClass = evalDashboardTrend(cell);
+    const pressClass = evalDashboardPressure(cell);
+    const sigs = getDashboardSignals(cell);
+
+    const fwKeys = [
+        "Bull Confirmation Signal", "Bear Confirmation Signal", "Trend Support", "Trend Resistance",
+        "Context Res UP", "Context Res DN", "Context Sup UP", "Context Sup DN", "PRICE SQUEEZE Alert",
+        "50% Context", "Context MA", "Volatility Support", "Volatility Resistance", "BREAK Targets",
+        "BREAK-Range Targets", "Volatility Alert", "Price OK Label", "Context Alert Label",
+        "Fib 23%", "Fib 38%", "Fib 50%", "Fib 61%", "Fib 76%", "Historical Alerts",
+        "All Context Alerts", "Range Alerts", "All Trend Alerts", "Trend-Following Alerts",
+        "Counter-Trend Alerts", "Bullish Only", "Bearish Only", "New ZigZag", "Squeeze Alerts"
+    ];
+
+    const momKeys = [
+        "Sinewave", "Trend Sinewave", "Momentum", "Oscillator", "Overbought/Oversold", "OverLoad",
+        "Momentum UpTrail", "Momentum DnTrail", "BULL Signals", "BEAR Signals", "Bull DIV",
+        "Bear DIV", "Bull TP", "Bear TP", "Bull EXIT", "Bear EXIT", "Momentum OK", "Sinewave OK",
+        "Squeeze", "Squeeze Alert Label", "BULL OK", "BEAR OK", "Reversal Signals", "Trend Signals"
+    ];
+
+    function formatVal(v) {
+        if (v === null || v === undefined || v === "null") return '<span style="color: var(--text-muted);">-</span>';
+        if (typeof v === 'number') return `<strong>${v.toLocaleString('fr-FR', { maximumFractionDigits: 2 })}</strong>`;
+        return `<strong>${v}</strong>`;
+    }
+
+    let fwGrid = '';
+    fwKeys.forEach(k => {
+        const val = d[k] !== undefined ? d[k] : (d._framework ? d._framework[k] : null);
+        fwGrid += `<div style="display:flex; justify-content:space-between; align-items:center; padding: 4px 6px; border-bottom: 1px solid var(--border-color); font-size: 11px;">
+            <span style="color: var(--text-secondary);">${k}</span>
+            <span>${formatVal(val)}</span>
+        </div>`;
+    });
+
+    let momGrid = '';
+    momKeys.forEach(k => {
+        const val = d[k] !== undefined ? d[k] : (d._momentum ? d._momentum[k] : null);
+        momGrid += `<div style="display:flex; justify-content:space-between; align-items:center; padding: 4px 6px; border-bottom: 1px solid var(--border-color); font-size: 11px;">
+            <span style="color: var(--text-secondary);">${k}</span>
+            <span>${formatVal(val)}</span>
+        </div>`;
+    });
+
+    const priceVal = d.price !== undefined ? d.price : (d.close !== undefined ? d.close : '-');
+
+    let sigBadges = '';
+    if (sigs.length > 0) {
+        sigBadges = sigs.map(s => {
+            const bars = s.bars_ago !== undefined ? s.bars_ago : 0;
+            if (s.type === 'bull_tp') {
+                return `<span style="background:#ecfdf5; color:#047857; padding:3px 8px; border-radius:4px; font-weight:700; margin-right:6px; font-size:11px; display:inline-block; margin-bottom:4px; border:1px solid #10b981;">🎯 Bull TP il y a ${bars} int.</span>`;
+            }
+            if (s.type === 'bear_tp') {
+                return `<span style="background:#fef2f2; color:#b91c1c; padding:3px 8px; border-radius:4px; font-weight:700; margin-right:6px; font-size:11px; display:inline-block; margin-bottom:4px; border:1px solid #ef4444;">🎯 Bear TP il y a ${bars} int.</span>`;
+            }
+            if (s.type === 'bull_exit') {
+                return `<span style="background:#fffbeb; color:#b45309; padding:3px 8px; border-radius:4px; font-weight:700; margin-right:6px; font-size:11px; display:inline-block; margin-bottom:4px; border:1px solid #f59e0b;">🚪 Bull EXIT il y a ${bars} int.</span>`;
+            }
+            if (s.type === 'bear_exit') {
+                return `<span style="background:#fffbeb; color:#b45309; padding:3px 8px; border-radius:4px; font-weight:700; margin-right:6px; font-size:11px; display:inline-block; margin-bottom:4px; border:1px solid #f59e0b;">🚪 Bear EXIT il y a ${bars} int.</span>`;
+            }
+
+            const isB = s.type === 'bull';
+            const inv = s.invalidated;
+            const col = isB ? '#1b4480' : '#871f25';
+            const bg = isB ? '#dcecff' : '#fedddf';
+            const ico = isB ? `▲${inv ? 'i' : ''} Bull` : `▼${inv ? 'i' : ''} Bear`;
+            const statusTxt = inv ? ' • INVALIDÉ (cours franchi open)' : ' • ACTIF';
+            const openInfo = (s.candle_open !== null && s.candle_open !== undefined) ? ` (open: ${s.candle_open})` : '';
+            return `<span style="background:${bg}; color:${col}; padding:3px 8px; border-radius:4px; font-weight:700; margin-right:6px; font-size:11px; display:inline-block; margin-bottom:4px; border: 1px solid ${inv ? '#94a3b8' : 'transparent'};">${ico} il y a ${bars} int.${openInfo}${statusTxt}</span>`;
+        }).join('');
+    } else {
+        sigBadges = '<span style="color:var(--text-muted); font-size:11px;">Aucun signal sur les 10 derniers intervalles</span>';
+    }
+
+    contentEl.innerHTML = `
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; background: var(--bg-hover); padding: 10px; border-radius: 8px;">
+            <div><span style="font-size:10px; color:var(--text-secondary); display:block;">DERNIÈRE MAJ</span><strong>${updatedStr}</strong></div>
+            <div><span style="font-size:10px; color:var(--text-secondary); display:block;">PRIX DÉTECTÉ</span><strong>${priceVal}</strong></div>
+            <div><span style="font-size:10px; color:var(--text-secondary); display:block;">STATUS TENDANCE</span><span class="legend-pill ${trendClass}" style="margin:0; font-size:10px;">${trendClass.replace('trend-', '')}</span></div>
+            <div><span style="font-size:10px; color:var(--text-secondary); display:block;">STATUS PRESSION</span><span class="legend-pill ${pressClass}" style="margin:0; font-size:10px;">${pressClass.replace('press-', '')}</span></div>
+            <div style="grid-column: 1 / -1; border-top: 1px dashed var(--border-color); padding-top: 6px; margin-top: 2px;">
+                <span style="font-size:10px; color:var(--text-secondary); display:block; margin-bottom: 4px;">SIGNAUX DÉTECTÉS (10 DERNIERS INTERVALLES)</span>
+                <div>${sigBadges}</div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div>
+                <h4 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; color: var(--primary-color); border-bottom: 1px solid var(--border-color); padding-bottom: 4px;"><i class="fa-solid fa-layer-group"></i> PRO FRAMEWORK (33 champs)</h4>
+                <div style="max-height: 380px; overflow-y: auto; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 4px;">
+                    ${fwGrid}
+                </div>
+            </div>
+            <div>
+                <h4 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; color: var(--primary-color); border-bottom: 1px solid var(--border-color); padding-bottom: 4px;"><i class="fa-solid fa-gauge-high"></i> PRO MOMENTUM (24 champs)</h4>
+                <div style="max-height: 380px; overflow-y: auto; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 4px;">
+                    ${momGrid}
+                </div>
+            </div>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+}
+
+function closeDashboardModal(e) {
+    if (e && e.target && e.target.id !== 'dashboard-cell-modal' && !e.target.classList.contains('close-modal-btn') && !e.target.closest('.close-modal-btn')) {
+        return;
+    }
+    const modal = document.getElementById('dashboard-cell-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+window.openDashboardCellModal = openDashboardCellModal;
+window.closeDashboardModal = closeDashboardModal;

@@ -12,9 +12,10 @@ TV_WEBHOOK_SECRET: str = os.getenv("TV_WEBHOOK_SECRET", "scalp_tv_secure_2026")
 # Default 6 indices
 DEFAULT_SYMBOLS: List[str] = [
     "GER40",
-    "US30",
     "NAS100",
+    "USA500",
     "SPX500",
+    "US30",
     "FRA40",
     "UK100"
 ]
@@ -22,6 +23,7 @@ DEFAULT_SYMBOLS: List[str] = [
 # Default 10 timeframes
 DEFAULT_TIMEFRAMES: List[str] = [
     "1m",
+    "2m",
     "3m",
     "5m",
     "15m",
@@ -34,10 +36,14 @@ DEFAULT_TIMEFRAMES: List[str] = [
 ]
 
 # Database path for alerting history and metrics storage
-DB_PATH: str = os.getenv("TV_DB_PATH", "tv_data.db")
+ROOT_DIR: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+DB_PATH: str = os.getenv("TV_DB_PATH", os.path.join(ROOT_DIR, "tv_data.db"))
 
 # In-memory history length per symbol+timeframe (number of updates kept in RAM)
 HISTORY_MAX_LEN: int = 100
 
 # Alerting cooldown in seconds (minimum time before same rule re-alerts for same symbol/tf)
 ALERT_DEFAULT_COOLDOWN_SEC: int = 120
+
+# Rolling data retention policy in days (default: 5 days rolling purge)
+RETENTION_DAYS: int = int(os.getenv("TV_RETENTION_DAYS", "5"))

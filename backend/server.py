@@ -6,7 +6,7 @@ import asyncio
 import subprocess
 import httpx
 from collections import deque
-from fastapi import FastAPI, HTTPException, Request, Query
+from fastapi import FastAPI, HTTPException, Request, Query, Response
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -1474,6 +1474,124 @@ async def get_history():
         "weekly_stats": weekly_stats,
         "monthly_stats": monthly_stats
     }
+
+# --------------------------------------------------------------------------
+# TRADINGVIEW WEBHOOK PROXY (Forwards to tv_service on port 8020)
+# --------------------------------------------------------------------------
+@app.get("/monitor")
+@app.get("/tv-monitor")
+async def proxy_tv_monitor():
+    """Proxies the TV monitor visual dashboard from port 8020."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.get("http://127.0.0.1:8020/monitor")
+            return Response(content=res.content, status_code=res.status_code, media_type="text/html")
+    except Exception as e:
+        return Response(content=f"<h3>Erreur de connexion au microservice TV: {str(e)}</h3>", status_code=502, media_type="text/html")
+
+@app.get("/api/v1/matrix")
+@app.get("/api/matrix")
+async def proxy_tv_matrix():
+    """Proxies the matrix snapshot from tv_service port 8020."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.get("http://127.0.0.1:8020/api/v1/matrix")
+            return Response(content=res.content, status_code=res.status_code, media_type="application/json")
+    except Exception as e:
+        return Response(content=json.dumps({"status": "error", "detail": str(e)}), status_code=502, media_type="application/json")
+
+@app.get("/api/v1/requests")
+@app.get("/api/requests")
+async def proxy_tv_requests():
+    """Proxies requests traces from port 8020."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.get("http://127.0.0.1:8020/api/v1/requests")
+            return Response(content=res.content, status_code=res.status_code, media_type="application/json")
+    except Exception as e:
+        return Response(content=json.dumps({"status": "error", "detail": str(e)}), status_code=502, media_type="application/json")
+
+@app.delete("/api/v1/requests")
+@app.delete("/api/requests")
+async def proxy_tv_requests_delete():
+    """Proxies clear requests traces to port 8020."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.delete("http://127.0.0.1:8020/api/v1/requests")
+            return Response(content=res.content, status_code=res.status_code, media_type="application/json")
+    except Exception as e:
+        return Response(content=json.dumps({"status": "error", "detail": str(e)}), status_code=502, media_type="application/json")
+
+@app.get("/api/v1/alerts")
+@app.get("/api/alerts")
+async def proxy_tv_alerts(limit: int = 50):
+    """Proxies recent triggered alerts from port 8020."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.get(f"http://127.0.0.1:8020/api/v1/alerts?limit={limit}")
+            return Response(content=res.content, status_code=res.status_code, media_type="application/json")
+    except Exception as e:
+        return Response(content=json.dumps({"status": "error", "detail": str(e)}), status_code=502, media_type="application/json")
+
+@app.delete("/api/v1/alerts")
+@app.delete("/api/alerts")
+async def proxy_tv_alerts_delete():
+    """Proxies clear alerts to port 8020."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.delete("http://127.0.0.1:8020/api/v1/alerts")
+            return Response(content=res.content, status_code=res.status_code, media_type="application/json")
+    except Exception as e:
+        return Response(content=json.dumps({"status": "error", "detail": str(e)}), status_code=502, media_type="application/json")
+
+@app.get("/api/v1/rules")
+@app.get("/api/rules")
+async def proxy_tv_rules():
+    """Proxies alert rules from port 8020."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.get("http://127.0.0.1:8020/api/v1/rules")
+            return Response(content=res.content, status_code=res.status_code, media_type="application/json")
+    except Exception as e:
+        return Response(content=json.dumps({"status": "error", "detail": str(e)}), status_code=502, media_type="application/json")
+
+@app.get("/api/v1/data/{subpath:path}")
+async def proxy_tv_data(request: Request, subpath: str):
+    """Proxies data explorer requests to port 8020."""
+    try:
+        url = f"http://127.0.0.1:8020/api/v1/data/{subpath}"
+        if request.url.query:
+            url += f"?{request.url.query}"
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            res = await client.get(url)
+            headers = dict(res.headers)
+            headers.pop("content-length", None)
+            return Response(content=res.content, status_code=res.status_code, media_type=res.headers.get("content-type"), headers=headers)
+    except Exception as e:
+        return Response(content=json.dumps({"status": "error", "detail": str(e)}), status_code=502, media_type="application/json")
+
+@app.get("/api/v1/webhook")
+@app.get("/api/webhook")
+async def proxy_tv_webhook_get():
+    """Friendly status check when accessed from a web browser (GET)."""
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.get("http://127.0.0.1:8020/api/v1/webhook")
+            return Response(content=res.content, status_code=res.status_code, media_type="application/json")
+    except Exception as e:
+        return Response(content=json.dumps({"status": "error", "detail": f"TV service proxy error: {str(e)}"}), status_code=502, media_type="application/json")
+
+@app.post("/api/v1/webhook")
+@app.post("/api/webhook")
+async def proxy_tv_webhook(request: Request):
+    """Transparent proxy forwarding TradingView webhooks to the TV microservice (port 8020)."""
+    try:
+        body = await request.json()
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.post("http://127.0.0.1:8020/api/v1/webhook", json=body)
+            return Response(content=res.content, status_code=res.status_code, media_type="application/json")
+    except Exception as e:
+        return Response(content=json.dumps({"status": "error", "detail": f"TV service proxy error: {str(e)}"}), status_code=502, media_type="application/json")
 
 if __name__ == "__main__":
     import uvicorn
