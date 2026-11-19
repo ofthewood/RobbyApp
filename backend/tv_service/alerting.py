@@ -103,6 +103,24 @@ class AlertEngine:
                 cooldown_sec=120
             ),
             AlertRule(
+                id="rule_pro_bull_ok",
+                name="BULL OK",
+                field="BULL OK",
+                operator="!=",
+                threshold="null",
+                severity="success",
+                cooldown_sec=120
+            ),
+            AlertRule(
+                id="rule_pro_bear_ok",
+                name="BEAR OK",
+                field="BEAR OK",
+                operator="!=",
+                threshold="null",
+                severity="danger",
+                cooldown_sec=120
+            ),
+            AlertRule(
                 id="rule_rsi_overbought",
                 name="RSI Suracheté (>= 70)",
                 field="rsi",
@@ -195,6 +213,8 @@ class AlertEngine:
                     "Bear Confirmation Signal": ["Bear Confirmation Signal", "Bear_Confirmation_Signal"],
                     "BULL Signals": ["BULL Signals", "BULL_Signals", "Bull Signals"],
                     "BEAR Signals": ["BEAR Signals", "BEAR_Signals", "Bear Signals"],
+                    "BULL OK": ["BULL OK", "BULL_OK", "Bull OK"],
+                    "BEAR OK": ["BEAR OK", "BEAR_OK", "Bear OK"],
                     "PRICE SQUEEZE Alert": ["PRICE SQUEEZE Alert", "Squeeze Alerts", "Squeeze"]
                 }
                 for alias in aliases.get(rule.field, []):

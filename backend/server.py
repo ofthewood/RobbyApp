@@ -1295,9 +1295,10 @@ async def get_history():
     now = int(time.time())
     days_ago = now - (90 * 24 * 3600)
     
+    # Add 86400 (24h) to date_to so broker server time (EET / UTC+2 or UTC+3) is never ahead of query range
     params = {
         "date_from": days_ago,
-        "date_to": now,
+        "date_to": now + 86400,
         "symbol": symbol
     }
     

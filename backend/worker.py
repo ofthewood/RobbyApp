@@ -808,7 +808,8 @@ async def get_history(date_from: int, date_to: int, symbol: str):
     
     import datetime
     dt_from = datetime.datetime.fromtimestamp(date_from)
-    dt_to   = datetime.datetime.fromtimestamp(date_to)
+    # Always extend dt_to by 1 day (+86400s) to account for broker server timezone offsets (e.g. EET / UTC+2 or UTC+3 vs local time)
+    dt_to   = datetime.datetime.fromtimestamp(date_to) + datetime.timedelta(days=1)
     
     deals = mt5.history_deals_get(dt_from, dt_to)
     if deals is None:

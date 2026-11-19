@@ -2665,6 +2665,12 @@ async function fetchPositions() {
         state.positions = positions;
         state.orders = orders;
         
+        // If a position was closed (e.g. hit TP/SL or closed in MT5 directly), refresh history immediately
+        if (state.lastPositionsCount !== undefined && positions.length < state.lastPositionsCount) {
+            fetchHistoryData(true);
+        }
+        state.lastPositionsCount = positions.length;
+
         // Filter active symbol positions for the quick scalp list
         const symbolPositions = positions.filter(p => p.symbol === state.config.symbol);
         const symbolOrders = orders.filter(o => o.symbol === state.config.symbol);
@@ -3471,6 +3477,7 @@ async function handleClosePosition(ticket, volume, accountType) {
         
         fetchPositions();
         fetchStatus();
+        fetchHistoryData(true);
     } catch (err) {
         showToast(err.message, "danger");
     }
@@ -3521,6 +3528,7 @@ async function executeClose(ticket, volume, accountType) {
         
         fetchPositions();
         fetchStatus();
+        fetchHistoryData(true);
     } catch (err) {
         showToast(err.message, "danger");
     }
@@ -3565,6 +3573,7 @@ async function handleCloseAllPositions() {
     
     fetchPositions();
     fetchStatus();
+    fetchHistoryData(true);
 }
 
 // ==========================================================================
@@ -5706,7 +5715,7 @@ function init() {
         if (tab && tab.classList.contains('active')) {
             fetchHistoryData(true);
         }
-    }, 10000); // Update history every 10s if active
+    }, 3000); // Update history every 3s if active
     setInterval(() => {
         const tab = document.getElementById('tab-dashboard');
         if (tab && tab.classList.contains('active')) {
@@ -5847,34 +5856,50 @@ function initDashboardTab() {
 }
 
 function renderDashboardSkeleton() {
+    const table = document.getElementById('dashboard-matrix-table');
     const thead = document.getElementById('dashboard-matrix-thead');
     const tbody = document.getElementById('dashboard-matrix-tbody');
     if (!thead || !tbody) return;
 
-    // Row 1: Index names spanning 2 columns each
+    // Enforce colgroup for W3C fixed table-layout column widths (strictly respected by Safari / WebKit on iOS)
+    let colgroup = document.getElementById('dashboard-matrix-colgroup');
+    if (!colgroup && table) {
+        colgroup = document.createElement('colgroup');
+        colgroup.id = 'dashboard-matrix-colgroup';
+        table.insertBefore(colgroup, thead);
+    }
+    if (colgroup) {
+        let colHtml = '';
+        DASHBOARD_SYMBOLS.forEach(() => {
+            colHtml += '<col class="col-trend" style="width: 8% !important;"><col class="col-press" style="width: 25.333% !important;">';
+        });
+        colgroup.innerHTML = colHtml;
+    }
+
+    // Row 1: Index names spanning 2 columns each (33.333% each)
     let r1 = '<tr>';
     DASHBOARD_SYMBOLS.forEach(sym => {
-        r1 += `<th colspan="2" class="th-symbol-header">${sym}</th>`;
+        r1 += `<th colspan="2" class="th-symbol-header" style="width: 33.333% !important;">${sym}</th>`;
     });
     r1 += '</tr>';
 
-    // Row 2: Sub-headers (Tend. | Press.)
+    // Row 2: Sub-headers (Tend. 8% | Press. 25.333%)
     let r2 = '<tr>';
     DASHBOARD_SYMBOLS.forEach(() => {
-        r2 += `<th class="th-sub-header">Tend.</th><th class="th-sub-header">Press.</th>`;
+        r2 += `<th class="th-sub-header th-sub-trend" style="width: 8% !important;">Tend.</th><th class="th-sub-header th-sub-press" style="width: 25.333% !important;">Press.</th>`;
     });
     r2 += '</tr>';
 
     thead.innerHTML = r1 + r2;
 
-    // Rows: 4H down to 1m
+    // Rows: 4H down to 1m with explicit inline widths to override any browser default
     let bodyHtml = '';
     DASHBOARD_TIMEFRAMES.forEach(tf => {
         bodyHtml += `<tr data-tf="${tf}">`;
         DASHBOARD_SYMBOLS.forEach(sym => {
             const cellKey = `${sym}_${tf}`;
-            bodyHtml += `<td class="matrix-cell-trend matrix-cell-nodata" id="cell-trend-${cellKey}" data-sym="${sym}" data-tf="${tf}" title="En attente de données TradingView..." onclick="openDashboardCellModal('${sym}', '${tf}')">${tf}</td>`;
-            bodyHtml += `<td class="matrix-cell-pressure matrix-cell-nodata" id="cell-press-${cellKey}" data-sym="${sym}" data-tf="${tf}" title="En attente de données TradingView..." onclick="openDashboardCellModal('${sym}', '${tf}')"><span class="nodata-dash">—</span></td>`;
+            bodyHtml += `<td class="matrix-cell-trend matrix-cell-nodata" style="width: 8% !important;" id="cell-trend-${cellKey}" data-sym="${sym}" data-tf="${tf}" title="En attente de données TradingView..." onclick="openDashboardCellModal('${sym}', '${tf}')">${tf}</td>`;
+            bodyHtml += `<td class="matrix-cell-pressure matrix-cell-nodata" style="width: 25.333% !important;" id="cell-press-${cellKey}" data-sym="${sym}" data-tf="${tf}" title="En attente de données TradingView..." onclick="openDashboardCellModal('${sym}', '${tf}')"><span class="nodata-dash">—</span></td>`;
         });
         bodyHtml += `</tr>`;
     });
@@ -6000,9 +6025,13 @@ function getDashboardSignals(cell) {
     const sigs = [];
     const bull = d['Bull Confirmation Signal'];
     const bear = d['Bear Confirmation Signal'];
+    const bullOk = d['BULL OK'];
+    const bearOk = d['BEAR OK'];
     const openVal = parseFloat(d['open']);
     const isBull = bull !== null && bull !== undefined && String(bull).toLowerCase() !== 'null' && String(bull) !== '0' && String(bull) !== '0.0';
     const isBear = bear !== null && bear !== undefined && String(bear).toLowerCase() !== 'null' && String(bear) !== '0' && String(bear) !== '0.0';
+    const isBullOk = bullOk !== null && bullOk !== undefined && String(bullOk).toLowerCase() !== 'null' && String(bullOk) !== '0' && String(bullOk) !== '0.0';
+    const isBearOk = bearOk !== null && bearOk !== undefined && String(bearOk).toLowerCase() !== 'null' && String(bearOk) !== '0' && String(bearOk) !== '0.0';
 
     if (isBull) {
         const inv = (!isNaN(price) && !isNaN(openVal)) ? (price < openVal) : false;
@@ -6011,6 +6040,12 @@ function getDashboardSignals(cell) {
     if (isBear) {
         const inv = (!isNaN(price) && !isNaN(openVal)) ? (price > openVal) : false;
         sigs.push({ type: 'bear', val: bear, bars_ago: 0, candle_open: openVal, invalidated: inv });
+    }
+    if (isBullOk) {
+        sigs.push({ type: 'bull_ok', val: bullOk, bars_ago: 0, candle_open: openVal, invalidated: false });
+    }
+    if (isBearOk) {
+        sigs.push({ type: 'bear_ok', val: bearOk, bars_ago: 0, candle_open: openVal, invalidated: false });
     }
     return sigs;
 }
@@ -6052,12 +6087,14 @@ function renderDashboardMatrix(matrixData) {
                 const sigs = getDashboardSignals(cell);
                 const bullSigs = sigs.filter(s => s.type === 'bull');
                 const bearSigs = sigs.filter(s => s.type === 'bear');
+                const bullOkSigs = sigs.filter(s => s.type === 'bull_ok');
+                const bearOkSigs = sigs.filter(s => s.type === 'bear_ok');
                 const bullTpSigs = sigs.filter(s => s.type === 'bull_tp');
                 const bearTpSigs = sigs.filter(s => s.type === 'bear_tp');
                 const bullExitSigs = sigs.filter(s => s.type === 'bull_exit');
                 const bearExitSigs = sigs.filter(s => s.type === 'bear_exit');
 
-                let sigHtml = '';
+                const badges = [];
 
                 // 1. Signaux d'entrée (Confirmation)
                 if (bullSigs.length > 0) {
@@ -6068,7 +6105,7 @@ function renderDashboardMatrix(matrixData) {
                     const bullTitle = isInv
                         ? `Signal Bull INVALIDÉ (cours < open bougie signal)`
                         : `Signal Bull ACTIF il y a ${minBullSig.bars_ago} intervalle(s)${countSuffix}`;
-                    sigHtml += `<span class="sig-triangle sig-bull" title="${bullTitle}">▲${invFlag}<span class="sig-age">${minBullSig.bars_ago}</span></span>`;
+                    badges.push(`<span class="sig-triangle sig-bull" title="${bullTitle}">▲${invFlag}<span class="sig-age">${minBullSig.bars_ago}</span></span>`);
                 }
                 if (bearSigs.length > 0) {
                     const minBearSig = bearSigs.reduce((min, s) => (s.bars_ago < min.bars_ago ? s : min), bearSigs[0]);
@@ -6078,35 +6115,54 @@ function renderDashboardMatrix(matrixData) {
                     const bearTitle = isInv
                         ? `Signal Bear INVALIDÉ (cours > open bougie signal)`
                         : `Signal Bear ACTIF il y a ${minBearSig.bars_ago} intervalle(s)${countSuffix}`;
-                    sigHtml += `<span class="sig-triangle sig-bear" title="${bearTitle}">▼${invFlag}<span class="sig-age">${minBearSig.bars_ago}</span></span>`;
+                    badges.push(`<span class="sig-triangle sig-bear" title="${bearTitle}">▼${invFlag}<span class="sig-age">${minBearSig.bars_ago}</span></span>`);
                 }
 
-                // 2. Signaux Take Profit (TP)
+                // 2. Signaux BULL OK et BEAR OK
+                if (bullOkSigs.length > 0) {
+                    const minSig = bullOkSigs.reduce((min, s) => (s.bars_ago < min.bars_ago ? s : min), bullOkSigs[0]);
+                    const title = `BULL OK il y a ${minSig.bars_ago} intervalle(s)`;
+                    badges.push(`<span class="sig-pill sig-ok-bull" title="${title}">OK▲<span class="sig-age">${minSig.bars_ago}</span></span>`);
+                }
+                if (bearOkSigs.length > 0) {
+                    const minSig = bearOkSigs.reduce((min, s) => (s.bars_ago < min.bars_ago ? s : min), bearOkSigs[0]);
+                    const title = `BEAR OK il y a ${minSig.bars_ago} intervalle(s)`;
+                    badges.push(`<span class="sig-pill sig-ok-bear" title="${title}">OK▼<span class="sig-age">${minSig.bars_ago}</span></span>`);
+                }
+
+                // 3. Signaux Take Profit (TP)
                 if (bullTpSigs.length > 0) {
                     const minSig = bullTpSigs.reduce((min, s) => (s.bars_ago < min.bars_ago ? s : min), bullTpSigs[0]);
                     const title = `Bull Take Profit (TP) il y a ${minSig.bars_ago} intervalle(s)`;
-                    sigHtml += `<span class="sig-pill sig-tp-bull" title="${title}">TP▲<span class="sig-age">${minSig.bars_ago}</span></span>`;
+                    badges.push(`<span class="sig-pill sig-tp-bull" title="${title}">TP▲<span class="sig-age">${minSig.bars_ago}</span></span>`);
                 }
                 if (bearTpSigs.length > 0) {
                     const minSig = bearTpSigs.reduce((min, s) => (s.bars_ago < min.bars_ago ? s : min), bearTpSigs[0]);
                     const title = `Bear Take Profit (TP) il y a ${minSig.bars_ago} intervalle(s)`;
-                    sigHtml += `<span class="sig-pill sig-tp-bear" title="${title}">TP▼<span class="sig-age">${minSig.bars_ago}</span></span>`;
+                    badges.push(`<span class="sig-pill sig-tp-bear" title="${title}">TP▼<span class="sig-age">${minSig.bars_ago}</span></span>`);
                 }
 
-                // 3. Signaux EXIT (Sortie)
+                // 4. Signaux EXIT (Sortie)
                 if (bullExitSigs.length > 0) {
                     const minSig = bullExitSigs.reduce((min, s) => (s.bars_ago < min.bars_ago ? s : min), bullExitSigs[0]);
                     const title = `Bull EXIT (Sortie) il y a ${minSig.bars_ago} intervalle(s)`;
-                    sigHtml += `<span class="sig-pill sig-exit-bull" title="${title}">EXT▲<span class="sig-age">${minSig.bars_ago}</span></span>`;
+                    badges.push(`<span class="sig-pill sig-exit-bull" title="${title}">EXT▲<span class="sig-age">${minSig.bars_ago}</span></span>`);
                 }
                 if (bearExitSigs.length > 0) {
                     const minSig = bearExitSigs.reduce((min, s) => (s.bars_ago < min.bars_ago ? s : min), bearExitSigs[0]);
                     const title = `Bear EXIT (Sortie) il y a ${minSig.bars_ago} intervalle(s)`;
-                    sigHtml += `<span class="sig-pill sig-exit-bear" title="${title}">EXT▼<span class="sig-age">${minSig.bars_ago}</span></span>`;
+                    badges.push(`<span class="sig-pill sig-exit-bear" title="${title}">EXT▼<span class="sig-age">${minSig.bars_ago}</span></span>`);
                 }
 
-                if (!sigHtml) {
+                let sigHtml = '';
+                if (badges.length === 0) {
                     sigHtml = `<span style="opacity: 0.25; font-size: 11px;">-</span>`;
+                } else if (badges.length <= 3) {
+                    sigHtml = `<div class="press-cell-content">${badges.join('')}</div>`;
+                } else {
+                    const mainBadges = badges.slice(0, 3).join('');
+                    const extraCount = badges.length - 3;
+                    sigHtml = `<div class="press-cell-content">${mainBadges}<span class="sig-pill sig-more-pill" title="${badges.length} alertes actives (cliquez pour détails)">+${extraCount}</span></div>`;
                 }
                 pressTd.innerHTML = sigHtml;
             }
@@ -6139,6 +6195,7 @@ function openDashboardCellModal(sym, tf) {
                 </p>
             </div>
         `;
+        modal.classList.add('active');
         modal.style.display = 'flex';
         return;
     }
@@ -6209,6 +6266,12 @@ function openDashboardCellModal(sym, tf) {
             if (s.type === 'bear_exit') {
                 return `<span style="background:#fffbeb; color:#b45309; padding:3px 8px; border-radius:4px; font-weight:700; margin-right:6px; font-size:11px; display:inline-block; margin-bottom:4px; border:1px solid #f59e0b;">🚪 Bear EXIT il y a ${bars} int.</span>`;
             }
+            if (s.type === 'bull_ok') {
+                return `<span style="background:#eff6ff; color:#1d4ed8; padding:3px 8px; border-radius:4px; font-weight:700; margin-right:6px; font-size:11px; display:inline-block; margin-bottom:4px; border:1px solid #3b82f6;">✅ BULL OK il y a ${bars} int.</span>`;
+            }
+            if (s.type === 'bear_ok') {
+                return `<span style="background:#fff1f2; color:#be123c; padding:3px 8px; border-radius:4px; font-weight:700; margin-right:6px; font-size:11px; display:inline-block; margin-bottom:4px; border:1px solid #f43f5e;">✅ BEAR OK il y a ${bars} int.</span>`;
+            }
 
             const isB = s.type === 'bull';
             const inv = s.invalidated;
@@ -6251,16 +6314,35 @@ function openDashboardCellModal(sym, tf) {
         </div>
     `;
 
+    modal.classList.add('active');
     modal.style.display = 'flex';
 }
 
 function closeDashboardModal(e) {
-    if (e && e.target && e.target.id !== 'dashboard-cell-modal' && !e.target.classList.contains('close-modal-btn') && !e.target.closest('.close-modal-btn')) {
-        return;
+    if (e && e.target) {
+        // If click is inside the modal card and not on a close button, do not close
+        if (e.target.closest('.dashboard-modal-card') && 
+            !e.target.closest('.dashboard-modal-close-btn') && 
+            !e.target.closest('.dashboard-modal-close-footer-btn')) {
+            return;
+        }
     }
     const modal = document.getElementById('dashboard-cell-modal');
-    if (modal) modal.style.display = 'none';
+    if (modal) {
+        modal.classList.remove('active');
+        modal.style.display = 'none';
+    }
 }
+
+// Global escape key listener to close modal
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('dashboard-cell-modal');
+        if (modal && (modal.classList.contains('active') || modal.style.display === 'flex')) {
+            closeDashboardModal();
+        }
+    }
+});
 
 window.openDashboardCellModal = openDashboardCellModal;
 window.closeDashboardModal = closeDashboardModal;

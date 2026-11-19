@@ -261,6 +261,8 @@
         .badge-bear { background: rgba(239, 83, 80, 0.15); color: var(--red); border: 1px solid rgba(239, 83, 80, 0.3); }
         .badge-tp { background: rgba(0, 188, 212, 0.15); color: var(--teal); border: 1px solid rgba(0, 188, 212, 0.3); }
         .badge-exit { background: rgba(240, 173, 78, 0.15); color: var(--yellow); border: 1px solid rgba(240, 173, 78, 0.3); }
+        .badge-ok-bull { background: rgba(41, 98, 255, 0.15); color: #82b1ff; border: 1px solid rgba(41, 98, 255, 0.4); }
+        .badge-ok-bear { background: rgba(233, 30, 99, 0.15); color: #ec407a; border: 1px solid rgba(233, 30, 99, 0.4); }
 
         /* Pagination Bar */
         .pagination-bar {
@@ -579,6 +581,8 @@
                         <option value="Bear TP Signals">Bear TP Signals (TP▼)</option>
                         <option value="Bull EXIT Signals">Bull EXIT Signals (EXT▲)</option>
                         <option value="Bear EXIT Signals">Bear EXIT Signals (EXT▼)</option>
+                        <option value="BULL OK">BULL OK (OK▲)</option>
+                        <option value="BEAR OK">BEAR OK (OK▼)</option>
                         <option value="BULL Signals">BULL Signals</option>
                         <option value="BEAR Signals">BEAR Signals</option>
                         <option value="PRICE SQUEEZE Alert">PRICE SQUEEZE Alert</option>
@@ -1226,6 +1230,9 @@
                 } else if (ruleLower.includes('exit')) {
                     ruleBadgeClass = 'badge-exit';
                     icon = ruleLower.includes('bull') ? '🚪▲' : '🚪▼';
+                } else if (ruleLower.includes('ok')) {
+                    ruleBadgeClass = ruleLower.includes('bull') ? 'badge-ok-bull' : 'badge-ok-bear';
+                    icon = ruleLower.includes('bull') ? '✅▲' : '✅▼';
                 } else if (ruleLower.includes('bull')) {
                     ruleBadgeClass = 'badge-bull';
                     icon = '▲';

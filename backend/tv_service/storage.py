@@ -255,6 +255,10 @@ class TVStateStore:
         Combines cell data, rolling history, and recorded alerts to ensure signals within
         the last 10 intervals are accurately reported and evaluated for invalidation.
         """
+        if not symbol:
+            symbol = cell.get("symbol", "")
+        if not tf:
+            tf = cell.get("tf", "")
         data = cell.get("data", {})
         history = list(cell.get("history", []))
 
@@ -360,6 +364,8 @@ class TVStateStore:
             bear_tp_val = h_data.get("Bear TP") or h_data.get("Bear TP Signals")
             bull_exit_val = h_data.get("Bull EXIT") or h_data.get("Bull EXIT Signals")
             bear_exit_val = h_data.get("Bear EXIT") or h_data.get("Bear EXIT Signals")
+            bull_ok_val = h_data.get("BULL OK") or h_data.get("Bull OK")
+            bear_ok_val = h_data.get("BEAR OK") or h_data.get("Bear OK")
 
             is_b = bull_val is not None and str(bull_val).lower() not in ["null", "0", "0.0", "none", "false"]
             is_s = bear_val is not None and str(bear_val).lower() not in ["null", "0", "0.0", "none", "false"]
@@ -367,6 +373,8 @@ class TVStateStore:
             is_s_tp = bear_tp_val is not None and str(bear_tp_val).lower() not in ["null", "0", "0.0", "none", "false"]
             is_b_ex = bull_exit_val is not None and str(bull_exit_val).lower() not in ["null", "0", "0.0", "none", "false"]
             is_s_ex = bear_exit_val is not None and str(bear_exit_val).lower() not in ["null", "0", "0.0", "none", "false"]
+            is_b_ok = bull_ok_val is not None and str(bull_ok_val).lower() not in ["null", "0", "0.0", "none", "false"]
+            is_s_ok = bear_ok_val is not None and str(bear_ok_val).lower() not in ["null", "0", "0.0", "none", "false"]
 
             c_open = h_open if h_open is not None else cell_open
             if is_b and ("bull", bars_ago) not in candidates:
@@ -381,6 +389,10 @@ class TVStateStore:
                 candidates[("bull_exit", bars_ago)] = {"type": "bull_exit", "bars_ago": bars_ago, "val": bull_exit_val, "candle_open": c_open, "timestamp": h_ts}
             if is_s_ex and ("bear_exit", bars_ago) not in candidates:
                 candidates[("bear_exit", bars_ago)] = {"type": "bear_exit", "bars_ago": bars_ago, "val": bear_exit_val, "candle_open": c_open, "timestamp": h_ts}
+            if is_b_ok and ("bull_ok", bars_ago) not in candidates:
+                candidates[("bull_ok", bars_ago)] = {"type": "bull_ok", "bars_ago": bars_ago, "val": bull_ok_val, "candle_open": c_open, "timestamp": h_ts}
+            if is_s_ok and ("bear_ok", bars_ago) not in candidates:
+                candidates[("bear_ok", bars_ago)] = {"type": "bear_ok", "bars_ago": bars_ago, "val": bear_ok_val, "candle_open": c_open, "timestamp": h_ts}
 
         # 3b. Scan recent_alerts (from DB / memory) for symbol & tf
         sym_norm = symbol.upper()
@@ -411,6 +423,10 @@ class TVStateStore:
             is_b_ex = any(k in rule_name or k in field_name or k in rule_id for k in ["bull exit", "rule_pro_bull_exit"])
             is_s_ex = any(k in rule_name or k in field_name or k in rule_id for k in ["bear exit", "rule_pro_bear_exit"])
 
+            # BULL OK & BEAR OK signals
+            is_b_ok = any(k in rule_name or k in field_name or k in rule_id for k in ["bull ok", "rule_pro_bull_ok"])
+            is_s_ok = any(k in rule_name or k in field_name or k in rule_id for k in ["bear ok", "rule_pro_bear_ok"])
+
             a_open = alert.get("candle_open")
             if a_open is None:
                 a_open = cell_open
@@ -427,10 +443,15 @@ class TVStateStore:
                 candidates[("bull_exit", bars_ago)] = {"type": "bull_exit", "bars_ago": bars_ago, "val": val, "candle_open": a_open, "timestamp": a_ts}
             if is_s_ex and ("bear_exit", bars_ago) not in candidates:
                 candidates[("bear_exit", bars_ago)] = {"type": "bear_exit", "bars_ago": bars_ago, "val": val, "candle_open": a_open, "timestamp": a_ts}
+            if is_b_ok and ("bull_ok", bars_ago) not in candidates:
+                candidates[("bull_ok", bars_ago)] = {"type": "bull_ok", "bars_ago": bars_ago, "val": val, "candle_open": a_open, "timestamp": a_ts}
+            if is_s_ok and ("bear_ok", bars_ago) not in candidates:
+                candidates[("bear_ok", bars_ago)] = {"type": "bear_ok", "bars_ago": bars_ago, "val": val, "candle_open": a_open, "timestamp": a_ts}
 
-        # 3c. Evaluate invalidation for each candidate signal
+        # 3c. Evaluate invalidation for entry signals (Bull/Bear confirmation)
         # Bull invalidé si prix actuel < open de la bougie du signal
         # Bear invalidé si prix actuel > open de la bougie du signal
+        # Note: Les alertes TP, EXIT, BULL OK et BEAR OK ne sont pas soumises à invalidation.
         recent_signals = []
         for (sig_type, b_ago), sig_obj in sorted(candidates.items(), key=lambda item: item[0][1]):
             sig_open = sig_obj.get("candle_open")

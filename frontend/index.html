@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Robby</title>
     <!-- Google Fonts: Inter & Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,7 +16,7 @@
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Custom Style Sheet -->
-    <link rel="stylesheet" href="/static/css/style.css?v=93">
+    <link rel="stylesheet" href="/static/css/style.css?v=101">
 </head>
 <body>
     <!-- App Main Container -->
@@ -65,6 +68,14 @@
                     <!-- Multi-Timeframe Matrix Table (GER40, NAS100, USA500) -->
                     <div class="dashboard-matrix-wrapper">
                         <table class="dashboard-matrix-table" id="dashboard-matrix-table">
+                            <colgroup id="dashboard-matrix-colgroup">
+                                <col class="col-trend" style="width: 8% !important;">
+                                <col class="col-press" style="width: 25.333% !important;">
+                                <col class="col-trend" style="width: 8% !important;">
+                                <col class="col-press" style="width: 25.333% !important;">
+                                <col class="col-trend" style="width: 8% !important;">
+                                <col class="col-press" style="width: 25.333% !important;">
+                            </colgroup>
                             <thead id="dashboard-matrix-thead">
                                 <!-- Dynamic headers: 6 indices with 2 subcolumns each -->
                             </thead>
@@ -98,21 +109,11 @@
                             <span class="legend-pill" style="background:#eef2ff;"><span class="sig-triangle sig-bull">▲<span class="sig-age">0</span></span> Bull</span>
                             <span class="legend-pill" style="background:#fef2f2;"><span class="sig-triangle sig-bear">▼<span class="sig-age">0</span></span> Bear</span>
                             <span class="legend-pill" style="background:#eef2ff;"><span class="sig-triangle sig-bull">▲<span class="sig-inv-flag">i</span><span class="sig-age">1</span></span> Invalidé</span>
+                            <span class="legend-pill" style="background:#eff6ff;"><span class="sig-pill sig-ok-bull">OK▲0</span> Bull OK</span>
+                            <span class="legend-pill" style="background:#fff1f2;"><span class="sig-pill sig-ok-bear">OK▼0</span> Bear OK</span>
                             <span class="legend-pill" style="background:#ecfdf5;"><span class="sig-pill sig-tp-bull">TP▲0</span> TP</span>
                             <span class="legend-pill" style="background:#fffbeb;"><span class="sig-pill sig-exit-bull">EXT▲0</span> Exit</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Detail Modal for inspecting all 61 indicators when clicking a cell -->
-                <div class="modal-overlay" id="dashboard-cell-modal" style="display:none;" onclick="closeDashboardModal(event)">
-                    <div class="modal-content" style="max-width: 750px; max-height: 85vh; background: var(--bg-card); border-radius: 12px; padding: 18px; border: 1px solid var(--border-color); box-shadow: var(--shadow-lg); overflow-y: auto;" onclick="event.stopPropagation()">
-                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 14px;">
-                            <h3 id="cell-modal-title" style="margin: 0; font-size: 16px; font-weight: 700;">Détails Indicateurs</h3>
-                            <button type="button" class="close-modal-btn" onclick="closeDashboardModal()"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-                        <div id="cell-modal-content">
-                            <!-- Populated on click -->
+                            <span class="legend-pill" style="background:#f1f5f9;"><span class="sig-pill sig-more-pill">+1</span> Plus</span>
                         </div>
                     </div>
                 </div>
@@ -910,6 +911,32 @@
             </div>
         </div>
 
+        <!-- Detail Modal for inspecting all 61 indicators when clicking a matrix cell -->
+        <div class="modal-overlay" id="dashboard-cell-modal" style="display:none;" onclick="closeDashboardModal(event)">
+            <div class="dashboard-modal-card" onclick="event.stopPropagation()">
+                <!-- Sticky Header: Always visible, never scrolls away -->
+                <div class="dashboard-modal-header">
+                    <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                        <i class="fa-solid fa-chart-column" style="color: var(--primary-color); font-size: 15px;"></i>
+                        <h3 id="cell-modal-title" style="margin: 0; font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Détails Indicateurs</h3>
+                    </div>
+                    <button type="button" class="dashboard-modal-close-btn" onclick="closeDashboardModal()" aria-label="Fermer la modale" title="Fermer (Échap)">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <!-- Scrollable Body with indicator grids -->
+                <div class="dashboard-modal-body" id="cell-modal-content">
+                    <!-- Populated dynamically -->
+                </div>
+                <!-- Sticky Footer: Easy tap button on mobile -->
+                <div class="dashboard-modal-footer">
+                    <button type="button" class="btn btn-primary dashboard-modal-close-footer-btn" onclick="closeDashboardModal()">
+                        <i class="fa-solid fa-check"></i> Fermer
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Toast Notifications Container -->
         <div class="toast-container" id="toast-container"></div>
         
@@ -919,6 +946,6 @@
     <script src="/static/js/lightweight-charts.js"></script>
     
     <!-- Application Script -->
-    <script src="/static/js/app.js?v=153"></script>
+    <script src="/static/js/app.js?v=202"></script>
 </body>
 </html>

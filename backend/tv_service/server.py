@@ -200,7 +200,7 @@ async def tv_webhook(
 
         bias = store._evaluate_cell_bias(metrics)
         cell_obj = store.matrix.get(sym, {}).get(tf, {})
-        tp_eval = store._evaluate_trend_and_pressure(cell_obj)
+        tp_eval = store._evaluate_trend_and_pressure(cell_obj, sym, tf)
         cell_info = {
             "symbol": sym,
             "tf": tf,
